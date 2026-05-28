@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Goal {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  STRENGTH
+}
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  LEGS
+  SHOULDERS
+  ARMS
+  CORE
+}
+
+enum ArticleCategory {
+  NUTRITION
+  TRAINING
+  RECOVERY
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  goal          Goal?
+  currentWeight Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workouts    Workout[]
+  bodyMetrics BodyMetric[]
+}
+
+model Exercise {
+  id           String      @id @default(cuid())
+  name         String      @unique
+  muscleGroup  MuscleGroup
+  instructions String?
+
+  sets WorkoutSet[]
+}
+
+model Workout {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @default(now())
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets WorkoutSet[]
+
+  @@index([userId, date])
+}
+
+model WorkoutSet {
+  id         String @id @default(cuid())
+  workoutId  String
+  exerciseId String
+  setNumber  Int
+  weight     Float
+  reps       Int
+
+  workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id])
+
+  @@index([workoutId])
+}
+
+model BodyMetric {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @default(now())
+  weight Float
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Article {
+  id        String          @id @default(cuid())
+  title     String
+  slug      String          @unique
+  content   String
+  category  ArticleCategory
+  createdAt DateTime        @default(now())
+}
