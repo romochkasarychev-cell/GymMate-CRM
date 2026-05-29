@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
-import { calculateVolume, formatDate } from "@/lib/labels";
+import { WorkoutLabelBadge } from "@/components/workout-label-badge";
+import { calculateVolume, countWorkoutExercises, formatDate, formatExerciseCount } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 type WorkoutDetailViewProps = {
@@ -38,6 +39,7 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
   );
 
   const volume = Math.round(calculateVolume(workout.sets));
+  const exerciseCount = countWorkoutExercises(workout.sets);
 
   return (
     <div className="space-y-8">
@@ -54,7 +56,19 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
 
       <PageHeader
         title={formatDate(workout.date)}
-        description={`${workout.sets.length} подходов · ${volume} кг объём`}
+        description={`${formatExerciseCount(exerciseCount)} · ${volume} кг объём`}
+        action={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <WorkoutLabelBadge label={workout.label} />
+            <Link
+              href={`/workouts/${workout.id}/edit`}
+              className={cn(buttonVariants({ variant: "outline" }), "border-primary/30")}
+            >
+              <Pencil className="size-4" />
+              Редактировать
+            </Link>
+          </div>
+        }
       />
 
       {workout.notes ? (
@@ -80,7 +94,7 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
               {sets.map((set) => (
                 <div
                   key={set.id}
-                  className="gym-set-card flex items-center justify-between rounded-lg px-4 py-3"
+                  className="gym-set-card flex flex-col gap-2 rounded-lg px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                 >
                   <div className="flex items-center gap-3">
                     <span className="gym-set-badge text-sm">{set.setNumber}</span>
@@ -88,7 +102,7 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
                       Подход {set.setNumber}
                     </span>
                   </div>
-                  <span className="font-heading text-lg tracking-wide">
+                  <span className="font-heading text-base tracking-wide sm:text-lg">
                     <span className="text-primary">{set.weight}</span> кг
                     <span className="mx-2 text-muted-foreground">×</span>
                     {set.reps}

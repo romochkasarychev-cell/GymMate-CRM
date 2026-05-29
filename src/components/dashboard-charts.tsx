@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -46,7 +47,7 @@ const tooltipStyle = {
 };
 
 const axisProps = {
-  tick: { fill: "oklch(0.72 0.055 295)", fontSize: 12 },
+  tick: { fill: "oklch(0.72 0.055 295)", fontSize: 11 },
   axisLine: { stroke: "oklch(0.33 0.07 295)" },
 };
 
@@ -64,29 +65,31 @@ export function DashboardCharts({
     <div className="grid gap-4 md:grid-cols-2">
       <Card className="gym-stat-card border-border/70 bg-card/80 md:col-span-2 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
+          <CardTitle className="font-heading text-lg font-normal uppercase tracking-wide sm:text-xl">
             Динамика веса
           </CardTitle>
           <CardDescription>Последние записи из профиля и метрик</CardDescription>
         </CardHeader>
-        <CardContent className="h-72 min-h-[288px] min-w-0">
+        <CardContent className="h-56 min-h-56 min-w-0 sm:h-72 sm:min-h-72">
           {!mounted ? (
             <ChartPlaceholder />
           ) : weightData.length > 0 ? (
-            <LineChart width={680} height={288} data={weightData} className="max-w-full">
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.33 0.07 295)" />
-              <XAxis dataKey="date" {...axisProps} />
-              <YAxis domain={["dataMin - 2", "dataMax + 2"]} {...axisProps} />
-              <Tooltip {...tooltipStyle} />
-              <Line
-                type="monotone"
-                dataKey="weight"
-                stroke="var(--color-chart-1)"
-                strokeWidth={3}
-                dot={{ fill: "var(--color-chart-1)", strokeWidth: 0, r: 4 }}
-                activeDot={{ r: 6, fill: "var(--color-chart-3)" }}
-              />
-            </LineChart>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weightData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.33 0.07 295)" />
+                <XAxis dataKey="date" {...axisProps} interval="preserveStartEnd" />
+                <YAxis domain={["dataMin - 2", "dataMax + 2"]} {...axisProps} width={40} />
+                <Tooltip {...tooltipStyle} />
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="var(--color-chart-1)"
+                  strokeWidth={3}
+                  dot={{ fill: "var(--color-chart-1)", strokeWidth: 0, r: 3 }}
+                  activeDot={{ r: 5, fill: "var(--color-chart-3)" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           ) : (
             <p className="text-sm text-muted-foreground">
               Обновите профиль, чтобы увидеть график веса.
@@ -97,22 +100,24 @@ export function DashboardCharts({
 
       <Card className="gym-stat-card border-border/70 bg-card/80 md:col-span-2 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
+          <CardTitle className="font-heading text-lg font-normal uppercase tracking-wide sm:text-xl">
             Объём за тренировку
           </CardTitle>
           <CardDescription>Кг × повторы по каждой сессии</CardDescription>
         </CardHeader>
-        <CardContent className="h-64 min-h-[256px] min-w-0">
+        <CardContent className="h-52 min-h-52 min-w-0 sm:h-64 sm:min-h-64">
           {!mounted ? (
-            <ChartPlaceholder className="h-64" />
+            <ChartPlaceholder className="h-full" />
           ) : volumeData.length > 0 ? (
-            <BarChart width={680} height={256} data={volumeData} className="max-w-full">
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.33 0.07 295)" />
-              <XAxis dataKey="label" {...axisProps} />
-              <YAxis {...axisProps} />
-              <Tooltip {...tooltipStyle} />
-              <Bar dataKey="volume" fill="var(--color-chart-2)" radius={[6, 6, 0, 0]} />
-            </BarChart>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={volumeData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.33 0.07 295)" />
+                <XAxis dataKey="label" {...axisProps} interval={0} angle={-20} textAnchor="end" height={50} />
+                <YAxis {...axisProps} width={40} />
+                <Tooltip {...tooltipStyle} />
+                <Bar dataKey="volume" fill="var(--color-chart-2)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
             <p className="text-sm text-muted-foreground">
               Запишите первую тренировку, чтобы увидеть объём.
@@ -127,7 +132,7 @@ export function DashboardCharts({
 function ChartPlaceholder({ className }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-lg bg-secondary/40 ${className ?? "h-72"}`}
+      className={`h-full animate-pulse rounded-lg bg-secondary/40 ${className ?? ""}`}
       aria-hidden
     />
   );

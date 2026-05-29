@@ -14,7 +14,7 @@ export function DashboardView() {
   const data = getDashboardData(store.workouts, store.bodyMetrics, store.profile);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Прогресс"
         description="Обзор тренировок, объёма и динамики веса"
@@ -66,9 +66,12 @@ export function DashboardView() {
             icon={<Calendar className="size-4 text-primary" />}
           />
         </div>
-        <p className="text-xs text-muted-foreground capitalize">
-          Неделя: {data.workoutPeriodCounts.week.label} · Месяц:{" "}
-          {data.workoutPeriodCounts.month.label} · Год: {data.workoutPeriodCounts.year.label}
+        <p className="text-xs leading-relaxed text-muted-foreground capitalize sm:text-sm">
+          <span className="block sm:inline">Неделя: {data.workoutPeriodCounts.week.label}</span>
+          <span className="hidden sm:inline"> · </span>
+          <span className="block sm:inline">Месяц: {data.workoutPeriodCounts.month.label}</span>
+          <span className="hidden sm:inline"> · </span>
+          <span className="block sm:inline">Год: {data.workoutPeriodCounts.year.label}</span>
         </p>
       </div>
 

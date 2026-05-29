@@ -9,7 +9,8 @@ import { WorkoutPeriodControls } from "@/components/workout-period-controls";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
-import { calculateVolume, formatDate } from "@/lib/labels";
+import { WorkoutLabelBadge } from "@/components/workout-label-badge";
+import { calculateVolume, formatDate, formatExerciseCount } from "@/lib/labels";
 import {
   filterWorkoutsByPeriod,
   formatPeriodLabel,
@@ -101,16 +102,22 @@ export function WorkoutsList() {
               <Link key={workout.id} href={`/workouts/${workout.id}`}>
                 <Card className="gym-card-hover border-border/70 bg-card/80 py-0 backdrop-blur-sm">
                   <CardHeader className="py-4">
+                    <div className="mb-2">
+                      <WorkoutLabelBadge label={workout.label} />
+                    </div>
                     <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
                       {formatDate(workout.date)}
                     </CardTitle>
-                    <CardDescription>
-                      {exerciseNames.slice(0, 3).join(" · ")}
-                      {exerciseNames.length > 3 ? " · ..." : ""}
-                      <span className="mx-2 text-primary/60">|</span>
-                      {workout.sets.length} подходов
-                      <span className="mx-2 text-primary/60">|</span>
-                      <span className="text-primary">{volume} кг</span> объём
+                    <CardDescription className="space-y-1 leading-relaxed">
+                      <span className="block">
+                        {exerciseNames.slice(0, 3).join(" · ")}
+                        {exerciseNames.length > 3 ? " · ..." : ""}
+                      </span>
+                      <span className="block">
+                        {formatExerciseCount(exerciseNames.length)}
+                        <span className="mx-2 text-primary/60">·</span>
+                        <span className="text-primary">{volume} кг</span> объём
+                      </span>
                     </CardDescription>
                   </CardHeader>
                 </Card>

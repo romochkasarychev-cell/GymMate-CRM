@@ -138,11 +138,11 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
 
   return (
     <Card className="gym-stat-card border-border/70 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
+      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="font-heading text-lg font-normal uppercase tracking-wide sm:text-xl">
           Календарь
         </CardTitle>
-        <div className="flex items-center gap-1">
+        <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-center">
           <Button
             type="button"
             variant="ghost"
@@ -152,7 +152,7 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <span className="min-w-[140px] text-center text-sm font-medium capitalize">
+          <span className="min-w-0 flex-1 text-center text-sm font-medium capitalize sm:min-w-[140px] sm:flex-none">
             {format(currentMonth, "LLLL yyyy", { locale: ru })}
           </span>
           <Button
@@ -176,7 +176,7 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
           {calendarDays.map((day) => {
             const key = toDateKey(day);
             const dayWorkouts = workoutsByDay.get(key) ?? [];
@@ -189,7 +189,7 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
               <div
                 key={key}
                 className={cn(
-                  "relative flex aspect-square flex-col items-center justify-center rounded-lg text-sm",
+                  "relative flex aspect-square min-h-8 flex-col items-center justify-center rounded-md text-[11px] sm:rounded-lg sm:text-sm",
                   inMonth ? "text-foreground" : "text-muted-foreground/40",
                   period.type === "week" && inPeriod && inMonth && "bg-accent/15",
                   period.type === "month" && inPeriod && inMonth && "bg-primary/5",

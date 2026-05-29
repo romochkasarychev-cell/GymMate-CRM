@@ -10,13 +10,13 @@ type PageHeaderProps = {
 export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="gym-page-title">{title}</h1>
+      <div className="min-w-0 space-y-1">
+        <h1 className="gym-page-title break-words">{title}</h1>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="w-full shrink-0 sm:w-auto [&_a]:w-full [&_button]:w-full sm:[&_a]:w-auto sm:[&_button]:w-auto">{action}</div> : null}
     </div>
   );
 }
@@ -36,7 +36,7 @@ export function StatCard({ label, value, icon, className }: StatCardProps) {
           {icon}
           {label}
         </p>
-        <p className="font-heading text-4xl font-normal tracking-wide">{value}</p>
+        <p className="font-heading text-3xl font-normal tracking-wide sm:text-4xl">{value}</p>
       </div>
     </div>
   );

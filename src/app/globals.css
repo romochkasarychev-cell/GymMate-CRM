@@ -91,13 +91,16 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    @apply font-sans;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "tnum" 1;
-  }
-
-  html {
-    @apply font-sans;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1,
@@ -188,7 +191,7 @@
   }
 
   .gym-page-title {
-    @apply font-heading text-3xl font-normal uppercase tracking-wide;
+    @apply font-heading text-2xl font-normal uppercase tracking-wide sm:text-3xl;
   }
 
   .gym-kg {

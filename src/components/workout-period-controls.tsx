@@ -64,7 +64,7 @@ export function WorkoutPeriodControls({
           <ChevronLeft className="size-4" />
         </Button>
 
-        <span className="text-center text-sm font-medium capitalize">
+        <span className="min-w-0 flex-1 px-1 text-center text-xs font-medium capitalize sm:min-w-[140px] sm:flex-none sm:px-0 sm:text-sm">
           {formatPeriodLabel(period)}
         </span>
 
