@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { notFound, useRouter } from "next/navigation";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -11,8 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
+import { deleteWorkout } from "@/lib/gymmate-storage";
 import { WorkoutLabelBadge } from "@/components/workout-label-badge";
 import { calculateVolume, countWorkoutExercises, formatDate, formatExerciseCount } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ type WorkoutDetailViewProps = {
 };
 
 export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
+  const router = useRouter();
   const { workouts } = useGymmateStore();
   const workout = workouts.find((item) => item.id === id);
 
@@ -40,6 +42,19 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
 
   const volume = Math.round(calculateVolume(workout.sets));
   const exerciseCount = countWorkoutExercises(workout.sets);
+  const workoutId = workout.id;
+
+  function handleDelete() {
+    const confirmed = window.confirm(
+      "Удалить эту тренировку? Действие нельзя отменить.",
+    );
+
+    if (!confirmed) return;
+
+    if (deleteWorkout(workoutId)) {
+      router.push("/workouts");
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -67,6 +82,14 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
               <Pencil className="size-4" />
               Редактировать
             </Link>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+            >
+              <Trash2 className="size-4" />
+              Удалить
+            </Button>
           </div>
         }
       />

@@ -236,10 +236,45 @@ export function updateWorkout(workout: Workout) {
   );
 
   if (!store.workouts.some((item) => item.id === workout.id)) {
-    return;
+    return false;
   }
 
   saveWorkouts(nextWorkouts);
+  return true;
+}
+
+export function deleteWorkout(id: string) {
+  const store = loadStore();
+  const nextWorkouts = store.workouts.filter((item) => item.id !== id);
+
+  if (nextWorkouts.length === store.workouts.length) {
+    return false;
+  }
+
+  saveWorkouts(nextWorkouts);
+  return true;
+}
+
+export type DeleteExerciseResult = "deleted" | "not_found" | "in_use";
+
+export function deleteExercise(id: string): DeleteExerciseResult {
+  const store = loadStore();
+  const exists = store.exercises.some((item) => item.id === id);
+
+  if (!exists) {
+    return "not_found";
+  }
+
+  const inUse = store.workouts.some((workout) =>
+    workout.sets.some((set) => set.exerciseId === id),
+  );
+
+  if (inUse) {
+    return "in_use";
+  }
+
+  saveExercises(store.exercises.filter((item) => item.id !== id));
+  return "deleted";
 }
 
 export function updateProfile(profile: Profile, previousWeight?: number) {

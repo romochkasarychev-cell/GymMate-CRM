@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Library, Plus } from "lucide-react";
+import { Library, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
-import { addExercise } from "@/lib/gymmate-storage";
+import { addExercise, deleteExercise } from "@/lib/gymmate-storage";
 import { muscleGroupLabels, muscleGroupOptions } from "@/lib/labels";
 import type { MuscleGroup } from "@/lib/types";
 
@@ -30,6 +30,7 @@ export function ReferencesView() {
   const [name, setName] = useState("");
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup>("CHEST");
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const exercisesByGroup = useMemo(() => {
@@ -58,6 +59,29 @@ export function ReferencesView() {
     setFormError(null);
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handleDelete(exerciseId: string, exerciseName: string) {
+    setDeleteError(null);
+
+    const confirmed = window.confirm(
+      `Удалить упражнение «${exerciseName}»?`,
+    );
+
+    if (!confirmed) return;
+
+    const result = deleteExercise(exerciseId);
+
+    if (result === "deleted") return;
+
+    if (result === "in_use") {
+      setDeleteError(
+        `«${exerciseName}» используется в тренировках и не может быть удалено.`,
+      );
+      return;
+    }
+
+    setDeleteError("Упражнение не найдено.");
   }
 
   return (
@@ -130,6 +154,10 @@ export function ReferencesView() {
         </CardContent>
       </Card>
 
+      {deleteError ? (
+        <p className="text-sm text-destructive">{deleteError}</p>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
         {muscleGroupOptions.map((group) => {
           const groupExercises = exercisesByGroup[group];
@@ -156,9 +184,19 @@ export function ReferencesView() {
                     {groupExercises.map((exercise) => (
                       <li
                         key={exercise.id}
-                        className="rounded-lg border border-border/60 bg-secondary/20 px-3 py-2 text-sm"
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/20 px-3 py-2 text-sm"
                       >
-                        {exercise.name}
+                        <span className="min-w-0 flex-1">{exercise.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={`Удалить ${exercise.name}`}
+                          onClick={() => handleDelete(exercise.id, exercise.name)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </li>
                     ))}
                   </ul>
