@@ -3,15 +3,63 @@ import type {
   BodyMetric,
   Exercise,
   Profile,
+  User,
   Workout,
 } from "@/lib/types";
 
 export const profile: Profile = {
   name: "Роман",
+  lastName: "Сарычев",
   email: "demo@gymmate.local",
+  phone: "+7 (900) 123-45-67",
   goal: "MUSCLE_GAIN",
+  startWeight: 80.2,
   currentWeight: 78.5,
 };
+
+export const users = [
+  {
+    id: "u-1",
+    name: "Роман",
+    email: "demo@gymmate.local",
+    goal: "MUSCLE_GAIN",
+    startWeight: 80.2,
+    currentWeight: 78.5,
+    registeredAt: new Date("2025-11-12T10:00:00"),
+    status: "ACTIVE",
+  },
+  {
+    id: "u-2",
+    name: "Алексей",
+    email: "alexey@gymmate.local",
+    goal: "STRENGTH",
+    startWeight: 92,
+    currentWeight: 94.5,
+    registeredAt: new Date("2026-01-08T14:30:00"),
+    status: "ACTIVE",
+  },
+  {
+    id: "u-3",
+    name: "Мария",
+    email: "maria@gymmate.local",
+    goal: "WEIGHT_LOSS",
+    startWeight: 68,
+    currentWeight: 64.2,
+    registeredAt: new Date("2026-03-22T09:15:00"),
+    status: "ACTIVE",
+  },
+  {
+    id: "u-4",
+    name: "Дмитрий",
+    email: "dmitry@gymmate.local",
+    goal: "MUSCLE_GAIN",
+    startWeight: 75,
+    currentWeight: 77.8,
+    registeredAt: new Date("2025-06-03T16:45:00"),
+    status: "INACTIVE",
+    inactiveSince: new Date("2026-02-10T00:00:00"),
+  },
+] as const satisfies User[];
 
 export const exercises: Exercise[] = [
   { id: "ex-1", name: "Жим штанги лёжа", muscleGroup: "CHEST" },
@@ -32,6 +80,7 @@ export const workouts: Workout[] = [
   {
     id: "w-1",
     date: new Date("2026-05-26T18:00:00"),
+    label: "HEAVY",
     notes: "Хорошая тренировка, прогресс в жиме",
     sets: [
       { id: "s-1", exerciseId: "ex-1", exerciseName: "Жим штанги лёжа", setNumber: 1, weight: 60, reps: 10 },
@@ -45,6 +94,7 @@ export const workouts: Workout[] = [
   {
     id: "w-2",
     date: new Date("2026-05-24T17:30:00"),
+    label: "MEDIUM",
     notes: "Ноги — тяжело, но выполнил план",
     sets: [
       { id: "s-7", exerciseId: "ex-2", exerciseName: "Приседания со штангой", setNumber: 1, weight: 80, reps: 8 },
@@ -58,6 +108,7 @@ export const workouts: Workout[] = [
   {
     id: "w-3",
     date: new Date("2026-05-22T18:15:00"),
+    label: "LIGHT",
     sets: [
       { id: "s-13", exerciseId: "ex-3", exerciseName: "Становая тяга", setNumber: 1, weight: 90, reps: 6 },
       { id: "s-14", exerciseId: "ex-3", exerciseName: "Становая тяга", setNumber: 2, weight: 100, reps: 5 },

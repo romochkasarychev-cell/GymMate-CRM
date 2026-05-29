@@ -4,27 +4,25 @@ import { useSyncExternalStore } from "react";
 import {
   GYMMATE_UPDATE_EVENT,
   getDefaultStore,
+  getStoreRevision,
   loadStore,
   type GymmateStore,
 } from "@/lib/gymmate-storage";
 
 let clientSnapshot: GymmateStore | null = null;
+let cachedRevision = -1;
 const serverSnapshot: GymmateStore = getDefaultStore();
 
 function readClientSnapshot(): GymmateStore {
   clientSnapshot = loadStore();
+  cachedRevision = getStoreRevision();
   return clientSnapshot;
 }
 
 function subscribe(onStoreChange: () => void) {
   const handleChange = () => {
-    readClientSnapshot();
     onStoreChange();
   };
-
-  if (clientSnapshot === null) {
-    readClientSnapshot();
-  }
 
   window.addEventListener(GYMMATE_UPDATE_EVENT, handleChange);
   window.addEventListener("storage", handleChange);
@@ -36,7 +34,9 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot(): GymmateStore {
-  if (clientSnapshot === null) {
+  const revision = getStoreRevision();
+
+  if (clientSnapshot === null || cachedRevision !== revision) {
     return readClientSnapshot();
   }
 

@@ -10,6 +10,8 @@ export type MuscleGroup =
 
 export type ArticleCategory = "NUTRITION" | "TRAINING" | "RECOVERY";
 
+export type WorkoutLabel = "HEAVY" | "MEDIUM" | "LIGHT" | "CARDIO";
+
 export type Exercise = {
   id: string;
   name: string;
@@ -29,6 +31,7 @@ export type WorkoutSet = {
 export type Workout = {
   id: string;
   date: Date;
+  label: WorkoutLabel;
   notes?: string;
   sets: WorkoutSet[];
 };
@@ -48,7 +51,24 @@ export type Article = {
 
 export type Profile = {
   name: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  goal: Goal;
+  startWeight: number;
+  currentWeight: number;
+};
+
+export type UserStatus = "ACTIVE" | "INACTIVE";
+
+export type User = {
+  id: string;
+  name: string;
   email: string;
   goal: Goal;
+  startWeight: number;
   currentWeight: number;
+  registeredAt: Date;
+  status: UserStatus;
+  inactiveSince?: Date;
 };

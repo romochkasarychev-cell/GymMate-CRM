@@ -1,15 +1,26 @@
 import {
   bodyMetrics as seedBodyMetrics,
+  exercises as seedExercises,
   profile as seedProfile,
   workouts as seedWorkouts,
 } from "@/lib/mock-data";
-import type { BodyMetric, Profile, Workout, WorkoutSet } from "@/lib/types";
+import type {
+  BodyMetric,
+  Exercise,
+  MuscleGroup,
+  Profile,
+  Workout,
+  WorkoutLabel,
+  WorkoutSet,
+} from "@/lib/types";
 
 const STORAGE_KEYS = {
   initialized: "gymmate:initialized",
+  revision: "gymmate:revision",
   workouts: "gymmate:workouts",
   profile: "gymmate:profile",
   bodyMetrics: "gymmate:bodyMetrics",
+  exercises: "gymmate:exercises",
 } as const;
 
 export const GYMMATE_UPDATE_EVENT = "gymmate-update";
@@ -21,6 +32,7 @@ export type GymmateStore = {
   workouts: Workout[];
   profile: Profile;
   bodyMetrics: BodyMetric[];
+  exercises: Exercise[];
 };
 
 function isBrowser() {
@@ -38,6 +50,7 @@ function parseWorkout(workout: StoredWorkout): Workout {
   return {
     ...workout,
     date: new Date(workout.date),
+    label: workout.label ?? "MEDIUM",
   };
 }
 
@@ -78,17 +91,39 @@ function notifyUpdate() {
   window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
 }
 
+export function getStoreRevision(): number {
+  if (!isBrowser()) return 0;
+  return Number(window.localStorage.getItem(STORAGE_KEYS.revision) ?? "0");
+}
+
+function bumpStoreRevision() {
+  if (!isBrowser()) return;
+  const nextRevision = getStoreRevision() + 1;
+  window.localStorage.setItem(STORAGE_KEYS.revision, String(nextRevision));
+  notifyUpdate();
+}
+
+function parseProfile(profile: Profile): Profile {
+  return {
+    ...profile,
+    lastName: profile.lastName ?? seedProfile.lastName,
+    phone: profile.phone ?? seedProfile.phone,
+    startWeight: profile.startWeight ?? profile.currentWeight,
+  };
+}
+
 export function getDefaultStore(): GymmateStore {
   return {
     workouts: seedWorkouts.map((workout) => ({
       ...workout,
       date: new Date(workout.date),
     })),
-    profile: { ...seedProfile },
+    profile: parseProfile({ ...seedProfile }),
     bodyMetrics: seedBodyMetrics.map((metric) => ({
       ...metric,
       date: new Date(metric.date),
     })),
+    exercises: [...seedExercises],
   };
 }
 
@@ -108,7 +143,9 @@ function initStoreIfNeeded() {
     STORAGE_KEYS.bodyMetrics,
     defaults.bodyMetrics.map(serializeBodyMetric),
   );
+  writeJson(STORAGE_KEYS.exercises, defaults.exercises);
   window.localStorage.setItem(STORAGE_KEYS.initialized, "1");
+  window.localStorage.setItem(STORAGE_KEYS.revision, "0");
 }
 
 export function loadStore(): GymmateStore {
@@ -119,15 +156,22 @@ export function loadStore(): GymmateStore {
   const storedWorkouts = readJson<StoredWorkout[]>(STORAGE_KEYS.workouts);
   const storedProfile = readJson<Profile>(STORAGE_KEYS.profile);
   const storedMetrics = readJson<StoredBodyMetric[]>(STORAGE_KEYS.bodyMetrics);
+  const storedExercises = readJson<Exercise[]>(STORAGE_KEYS.exercises);
+  const defaults = getDefaultStore();
 
-  if (!storedWorkouts || !storedProfile || !storedMetrics) {
-    return getDefaultStore();
+  if (!storedExercises && window.localStorage.getItem(STORAGE_KEYS.initialized)) {
+    writeJson(STORAGE_KEYS.exercises, defaults.exercises);
+  }
+
+  if (!storedWorkouts && !storedProfile && !storedMetrics && !storedExercises) {
+    return defaults;
   }
 
   return {
-    workouts: storedWorkouts.map(parseWorkout),
-    profile: storedProfile,
-    bodyMetrics: storedMetrics.map(parseBodyMetric),
+    workouts: storedWorkouts?.map(parseWorkout) ?? defaults.workouts,
+    profile: storedProfile ? parseProfile(storedProfile) : defaults.profile,
+    bodyMetrics: storedMetrics?.map(parseBodyMetric) ?? defaults.bodyMetrics,
+    exercises: storedExercises ?? defaults.exercises,
   };
 }
 
@@ -136,12 +180,12 @@ export function saveWorkouts(workouts: Workout[]) {
     STORAGE_KEYS.workouts,
     workouts.map(serializeWorkout),
   );
-  notifyUpdate();
+  bumpStoreRevision();
 }
 
 export function saveProfile(profile: Profile) {
   writeJson(STORAGE_KEYS.profile, profile);
-  notifyUpdate();
+  bumpStoreRevision();
 }
 
 export function saveBodyMetrics(bodyMetrics: BodyMetric[]) {
@@ -149,12 +193,53 @@ export function saveBodyMetrics(bodyMetrics: BodyMetric[]) {
     STORAGE_KEYS.bodyMetrics,
     bodyMetrics.map(serializeBodyMetric),
   );
-  notifyUpdate();
+  bumpStoreRevision();
+}
+
+export function saveExercises(exercises: Exercise[]) {
+  writeJson(STORAGE_KEYS.exercises, exercises);
+  bumpStoreRevision();
+}
+
+export function addExercise(name: string, muscleGroup: MuscleGroup) {
+  const trimmedName = name.trim();
+  if (!trimmedName) return false;
+
+  const store = loadStore();
+  const exists = store.exercises.some(
+    (exercise) =>
+      exercise.muscleGroup === muscleGroup &&
+      exercise.name.toLowerCase() === trimmedName.toLowerCase(),
+  );
+
+  if (exists) return false;
+
+  const nextExercise: Exercise = {
+    id: crypto.randomUUID(),
+    name: trimmedName,
+    muscleGroup,
+  };
+
+  saveExercises([...store.exercises, nextExercise]);
+  return true;
 }
 
 export function addWorkout(workout: Workout) {
   const store = loadStore();
   saveWorkouts([workout, ...store.workouts]);
+}
+
+export function updateWorkout(workout: Workout) {
+  const store = loadStore();
+  const nextWorkouts = store.workouts.map((item) =>
+    item.id === workout.id ? workout : item,
+  );
+
+  if (!store.workouts.some((item) => item.id === workout.id)) {
+    return;
+  }
+
+  saveWorkouts(nextWorkouts);
 }
 
 export function updateProfile(profile: Profile, previousWeight?: number) {
@@ -206,13 +291,16 @@ export function buildWorkoutSets(
 }
 
 export function createWorkout(
+  label: WorkoutLabel,
   notes: string,
   sets: { exerciseId: string; weight: string; reps: string }[],
   exercises: { id: string; name: string }[],
+  existing?: Pick<Workout, "id" | "date">,
 ): Workout {
   return {
-    id: crypto.randomUUID(),
-    date: new Date(),
+    id: existing?.id ?? crypto.randomUUID(),
+    date: existing?.date ?? new Date(),
+    label,
     notes: notes.trim() || undefined,
     sets: buildWorkoutSets(sets, exercises),
   };
