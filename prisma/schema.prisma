@@ -1,10 +1,11 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Goal {
@@ -22,6 +23,18 @@ enum MuscleGroup {
   CORE
 }
 
+enum WorkoutLabel {
+  HEAVY
+  MEDIUM
+  LIGHT
+  CARDIO
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum ArticleCategory {
   NUTRITION
   TRAINING
@@ -29,14 +42,19 @@ enum ArticleCategory {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  passwordHash  String
-  name          String?
-  goal          Goal?
-  currentWeight Float?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id            String     @id @default(cuid())
+  email         String     @unique
+  passwordHash  String?
+  name          String
+  lastName      String     @default("")
+  phone         String     @default("")
+  goal          Goal       @default(MUSCLE_GAIN)
+  startWeight   Float      @default(0)
+  currentWeight Float      @default(0)
+  status        UserStatus @default(ACTIVE)
+  inactiveSince DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   workouts    Workout[]
   bodyMetrics BodyMetric[]
@@ -44,19 +62,23 @@ model User {
 
 model Exercise {
   id           String      @id @default(cuid())
-  name         String      @unique
+  name         String
   muscleGroup  MuscleGroup
   instructions String?
 
   sets WorkoutSet[]
+
+  @@unique([name, muscleGroup])
 }
 
 model Workout {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   userId    String
-  date      DateTime @default(now())
+  date      DateTime     @default(now())
+  label     WorkoutLabel @default(MEDIUM)
   notes     String?
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets WorkoutSet[]
@@ -65,12 +87,13 @@ model Workout {
 }
 
 model WorkoutSet {
-  id         String @id @default(cuid())
-  workoutId  String
-  exerciseId String
-  setNumber  Int
-  weight     Float
-  reps       Int
+  id           String @id @default(cuid())
+  workoutId    String
+  exerciseId   String
+  exerciseName String
+  setNumber    Int
+  weight       Float
+  reps         Int
 
   workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise Exercise @relation(fields: [exerciseId], references: [id])

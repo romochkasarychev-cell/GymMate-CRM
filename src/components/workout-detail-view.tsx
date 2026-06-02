@@ -14,6 +14,8 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
 import { deleteWorkout } from "@/lib/gymmate-storage";
+import { isApiEnabled, removeWorkout } from "@/lib/gymmate-api";
+import { refreshGymmateStore } from "@/hooks/use-gymmate-store";
 import { WorkoutLabelBadge } from "@/components/workout-label-badge";
 import { calculateVolume, countWorkoutExercises, formatDate, formatExerciseCount } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -44,12 +46,19 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
   const exerciseCount = countWorkoutExercises(workout.sets);
   const workoutId = workout.id;
 
-  function handleDelete() {
+  async function handleDelete() {
     const confirmed = window.confirm(
       "Удалить эту тренировку? Действие нельзя отменить.",
     );
 
     if (!confirmed) return;
+
+    if (isApiEnabled()) {
+      await removeWorkout(workoutId);
+      refreshGymmateStore();
+      router.push("/workouts");
+      return;
+    }
 
     if (deleteWorkout(workoutId)) {
       router.push("/workouts");

@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useGymmateStore } from "@/hooks/use-gymmate-store";
+import { useGymmateStore, refreshGymmateStore } from "@/hooks/use-gymmate-store";
+import { isApiEnabled, postExercise, removeExercise } from "@/lib/gymmate-api";
 import { addExercise, deleteExercise } from "@/lib/gymmate-storage";
 import { muscleGroupLabels, muscleGroupOptions } from "@/lib/labels";
 import type { MuscleGroup } from "@/lib/types";
@@ -45,9 +46,23 @@ export function ReferencesView() {
     );
   }, [exercises]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaved(false);
+
+    if (isApiEnabled()) {
+      try {
+        await postExercise(name, muscleGroup);
+        setName("");
+        setFormError(null);
+        setSaved(true);
+        refreshGymmateStore();
+        window.setTimeout(() => setSaved(false), 2000);
+      } catch {
+        setFormError("Введите название. Такое упражнение в этой группе уже есть.");
+      }
+      return;
+    }
 
     const added = addExercise(name, muscleGroup);
     if (!added) {
@@ -61,7 +76,7 @@ export function ReferencesView() {
     window.setTimeout(() => setSaved(false), 2000);
   }
 
-  function handleDelete(exerciseId: string, exerciseName: string) {
+  async function handleDelete(exerciseId: string, exerciseName: string) {
     setDeleteError(null);
 
     const confirmed = window.confirm(
@@ -69,6 +84,25 @@ export function ReferencesView() {
     );
 
     if (!confirmed) return;
+
+    if (isApiEnabled()) {
+      const result = await removeExercise(exerciseId);
+
+      if (result === "deleted") {
+        refreshGymmateStore();
+        return;
+      }
+
+      if (result === "in_use") {
+        setDeleteError(
+          `«${exerciseName}» используется в тренировках и не может быть удалено.`,
+        );
+        return;
+      }
+
+      setDeleteError("Упражнение не найдено.");
+      return;
+    }
 
     const result = deleteExercise(exerciseId);
 

@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getArticleBySlug } from "@/lib/mock-data";
+import { getArticleBySlug as getMockArticleBySlug } from "@/lib/mock-data";
+import { getArticleBySlug as getDbArticleBySlug } from "@/lib/server/article-service";
 import { articleCategoryLabels } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,10 @@ function renderMarkdown(content: string) {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article =
+    process.env.NEXT_PUBLIC_USE_API === "true"
+      ? await getDbArticleBySlug(slug)
+      : getMockArticleBySlug(slug);
 
   if (!article) {
     notFound();

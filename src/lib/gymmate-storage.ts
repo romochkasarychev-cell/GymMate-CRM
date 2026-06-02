@@ -4,6 +4,15 @@ import {
   profile as seedProfile,
   workouts as seedWorkouts,
 } from "@/lib/mock-data";
+import {
+  fetchStore,
+  isApiEnabled,
+  patchProfile as apiPatchProfile,
+  patchWorkout as apiPatchWorkout,
+  postExercise as apiPostExercise,
+  postWorkout as apiPostWorkout,
+  removeWorkout as apiRemoveWorkout,
+} from "@/lib/gymmate-api";
 import type {
   BodyMetric,
   Exercise,
@@ -13,6 +22,7 @@ import type {
   WorkoutLabel,
   WorkoutSet,
 } from "@/lib/types";
+import { buildWorkoutSets as buildWorkoutSetsFromUtils, createWorkoutFromInput } from "@/lib/workout-utils";
 
 const STORAGE_KEYS = {
   initialized: "gymmate:initialized",
@@ -225,11 +235,29 @@ export function addExercise(name: string, muscleGroup: MuscleGroup) {
 }
 
 export function addWorkout(workout: Workout) {
+  if (isApiEnabled()) {
+    void (async () => {
+      const store = await fetchStore();
+      await apiPostWorkout(workout, store.exercises);
+      notifyUpdate();
+    })();
+    return;
+  }
+
   const store = loadStore();
   saveWorkouts([workout, ...store.workouts]);
 }
 
 export function updateWorkout(workout: Workout) {
+  if (isApiEnabled()) {
+    void (async () => {
+      const store = await fetchStore();
+      await apiPatchWorkout(workout, store.exercises);
+      notifyUpdate();
+    })();
+    return true;
+  }
+
   const store = loadStore();
   const nextWorkouts = store.workouts.map((item) =>
     item.id === workout.id ? workout : item,
@@ -244,6 +272,14 @@ export function updateWorkout(workout: Workout) {
 }
 
 export function deleteWorkout(id: string) {
+  if (isApiEnabled()) {
+    void (async () => {
+      await apiRemoveWorkout(id);
+      notifyUpdate();
+    })();
+    return true;
+  }
+
   const store = loadStore();
   const nextWorkouts = store.workouts.filter((item) => item.id !== id);
 
@@ -278,6 +314,14 @@ export function deleteExercise(id: string): DeleteExerciseResult {
 }
 
 export function updateProfile(profile: Profile, previousWeight?: number) {
+  if (isApiEnabled()) {
+    void (async () => {
+      await apiPatchProfile(profile, previousWeight);
+      notifyUpdate();
+    })();
+    return;
+  }
+
   const store = loadStore();
   saveProfile(profile);
 
@@ -307,22 +351,7 @@ export function buildWorkoutSets(
   sets: { exerciseId: string; weight: string; reps: string }[],
   exercises: { id: string; name: string }[],
 ): WorkoutSet[] {
-  const counters = new Map<string, number>();
-
-  return sets.map((set) => {
-    const exercise = exercises.find((item) => item.id === set.exerciseId);
-    const setNumber = (counters.get(set.exerciseId) ?? 0) + 1;
-    counters.set(set.exerciseId, setNumber);
-
-    return {
-      id: crypto.randomUUID(),
-      exerciseId: set.exerciseId,
-      exerciseName: exercise?.name ?? "Упражнение",
-      setNumber,
-      weight: Number.parseFloat(set.weight) || 0,
-      reps: Number.parseInt(set.reps, 10) || 0,
-    };
-  });
+  return buildWorkoutSetsFromUtils(sets, exercises);
 }
 
 export function createWorkout(
@@ -332,11 +361,5 @@ export function createWorkout(
   exercises: { id: string; name: string }[],
   existing?: Pick<Workout, "id" | "date">,
 ): Workout {
-  return {
-    id: existing?.id ?? crypto.randomUUID(),
-    date: existing?.date ?? new Date(),
-    label,
-    notes: notes.trim() || undefined,
-    sets: buildWorkoutSets(sets, exercises),
-  };
+  return createWorkoutFromInput(label, notes, sets, exercises, existing);
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { articles } from "@/lib/mock-data";
+import { fetchArticles, isApiEnabled } from "@/lib/gymmate-api";
+import { articles as mockArticles } from "@/lib/mock-data";
 import { articleCategoryLabels } from "@/lib/labels";
-import type { ArticleCategory } from "@/lib/types";
+import type { Article, ArticleCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const categoryTabs: { id: ArticleCategory; label: string }[] = [
@@ -18,6 +19,15 @@ const categoryTabs: { id: ArticleCategory; label: string }[] = [
 
 export function KnowledgeList() {
   const [activeCategory, setActiveCategory] = useState<ArticleCategory>("TRAINING");
+  const [articles, setArticles] = useState<Article[]>(mockArticles);
+
+  useEffect(() => {
+    if (!isApiEnabled()) return;
+
+    void fetchArticles()
+      .then((data) => setArticles(data.articles))
+      .catch(() => setArticles(mockArticles));
+  }, []);
 
   const filteredArticles = articles.filter(
     (article) => article.category === activeCategory,
