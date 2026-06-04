@@ -89,6 +89,7 @@ export type Profile = {
   currentWeight: number;
   startMeasurements: BodyMeasurements;
   currentMeasurements: BodyMeasurements;
+  registeredAt: Date;
 };
 
 export type UserStatus = "ACTIVE" | "INACTIVE";

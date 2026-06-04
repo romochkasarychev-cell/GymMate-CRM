@@ -35,6 +35,7 @@ export const profile: Profile = {
     legRight: 57,
     legLeft: 56.5,
   },
+  registeredAt: new Date("2025-11-12T10:00:00"),
 };
 
 export const users = [

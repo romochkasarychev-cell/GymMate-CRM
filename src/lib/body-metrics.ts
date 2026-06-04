@@ -140,9 +140,12 @@ export function upsertStartMetric(
 
 export function recordCurrentMetric(metrics: BodyMetric[], currentWeight: number) {
   const sorted = sortMetrics(metrics);
-  const startIndex = findStartAnchorIndex(sorted);
-  const startAnchor = startIndex >= 0 ? sorted[startIndex] : null;
-  const rest = sorted.filter((_, index) => index !== startIndex);
+  const explicitStartIndex = sorted.findIndex(isStartAnchorMetric);
+  const startAnchor = explicitStartIndex >= 0 ? sorted[explicitStartIndex] : null;
+  const rest =
+    explicitStartIndex >= 0
+      ? sorted.filter((_, index) => index !== explicitStartIndex)
+      : sorted;
 
   const today = normalizeReadingDate(new Date());
   const todayKey = today.toDateString();

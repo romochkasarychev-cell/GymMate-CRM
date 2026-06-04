@@ -5,6 +5,7 @@ import { calculateVolume, formatShortDate } from "@/lib/labels";
 import {
   consolidateKindMetrics,
   isStartAnchorMeasurementPoint,
+  sanitizeMeasurementMetrics,
 } from "@/lib/measurement-metrics";
 import {
   MEASUREMENT_FIELD_KEYS,
@@ -74,7 +75,10 @@ export function buildMeasurementChartData(
   kind: MeasurementFieldKey,
   profile: Profile,
 ): MeasurementChartPoint[] {
-  const daily = consolidateKindMetrics(metrics, kind);
+  const daily = consolidateKindMetrics(
+    sanitizeMeasurementMetrics(metrics, profile.registeredAt),
+    kind,
+  );
   const startValue = profile.startMeasurements[kind];
   const currentValue = profile.currentMeasurements[kind];
 

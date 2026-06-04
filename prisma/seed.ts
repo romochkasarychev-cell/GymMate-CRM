@@ -135,7 +135,7 @@ async function main() {
         currentMeasurements: profile.currentMeasurements,
       },
       user.createdAt,
-      new Date("2026-05-26T12:00:00"),
+      user.createdAt,
     );
 
     for (const metric of baseline) {

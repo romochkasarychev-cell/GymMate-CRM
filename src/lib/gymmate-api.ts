@@ -39,9 +39,12 @@ async function parseJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function parseProfile(profile: Profile): Profile {
+function parseProfile(profile: Profile & { registeredAt?: string | Date }): Profile {
   return {
     ...profile,
+    registeredAt: profile.registeredAt
+      ? new Date(profile.registeredAt)
+      : new Date("2025-11-12T10:00:00"),
     startMeasurements: normalizeBodyMeasurements(profile.startMeasurements),
     currentMeasurements: normalizeBodyMeasurements(profile.currentMeasurements),
   };

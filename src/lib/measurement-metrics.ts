@@ -2,6 +2,8 @@ import {
   buildBaselineBodyMetrics,
   consolidateMetricsByDay,
   isStartAnchorMetric,
+  normalizeReadingDate,
+  normalizeStartDate,
   recordCurrentMetric,
   upsertStartMetric,
 } from "@/lib/body-metrics";
@@ -44,6 +46,38 @@ export function consolidateMeasurementMetrics(
 ): MeasurementMetric[] {
   return sortMetrics(
     MEASUREMENT_FIELD_KEYS.flatMap((kind) => consolidateKindMetrics(metrics, kind)),
+  );
+}
+
+/** Убирает дневные записи до даты регистрации / стартового якоря (8:00). */
+export function sanitizeMeasurementMetrics(
+  metrics: MeasurementMetric[],
+  registeredAt: Date,
+): MeasurementMetric[] {
+  const registrationDay = normalizeStartDate(registeredAt);
+
+  return sortMetrics(
+    MEASUREMENT_FIELD_KEYS.flatMap((kind) => {
+      const consolidated = consolidateKindMetrics(metrics, kind);
+      if (consolidated.length === 0) {
+        return [];
+      }
+
+      const startAnchor = consolidated.find((metric) =>
+        isStartAnchorMetric(toBodyMetric(metric)),
+      );
+      const cutoff = startAnchor
+        ? normalizeStartDate(startAnchor.date)
+        : registrationDay;
+
+      return consolidated.filter((metric) => {
+        if (isStartAnchorMetric(toBodyMetric(metric))) {
+          return true;
+        }
+
+        return normalizeReadingDate(metric.date).getTime() >= cutoff.getTime();
+      });
+    }),
   );
 }
 
@@ -155,17 +189,22 @@ export function applyMeasurementMetricUpdates(
   let next = metrics;
   let changed = false;
 
-  for (const key of MEASUREMENT_FIELD_KEYS) {
-    const existingValue = existingStart[key];
-    const profileValue = profile.startMeasurements[key];
-    const startChanged =
-      previousStartMeasurement?.key === key
-        ? profileValue !== previousStartMeasurement.value
-        : existingValue !== profileValue;
+  const syncStartFields =
+    previousStartMeasurement !== undefined || previousCurrentMeasurement === undefined;
 
-    if (startChanged) {
-      next = upsertStartMeasurementMetric(next, key, profileValue, startDate);
-      changed = true;
+  if (syncStartFields) {
+    for (const key of MEASUREMENT_FIELD_KEYS) {
+      const existingValue = existingStart[key];
+      const profileValue = profile.startMeasurements[key];
+      const startChanged =
+        previousStartMeasurement?.key === key
+          ? profileValue !== previousStartMeasurement.value
+          : existingValue !== profileValue;
+
+      if (startChanged) {
+        next = upsertStartMeasurementMetric(next, key, profileValue, startDate);
+        changed = true;
+      }
     }
   }
 

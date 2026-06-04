@@ -11,6 +11,7 @@ import {
   applyMeasurementMetricUpdates,
   buildAllBaselineMeasurementMetrics,
   consolidateMeasurementMetrics,
+  sanitizeMeasurementMetrics,
   type MeasurementMetricUpdateOptions,
 } from "@/lib/measurement-metrics";
 import { resolveProfileMeasurements } from "@/lib/profile-mapper";
@@ -156,6 +157,9 @@ function parseProfile(
     lastName: profile.lastName ?? seedProfile.lastName,
     phone: profile.phone ?? seedProfile.phone,
     startWeight: profile.startWeight ?? profile.currentWeight,
+    registeredAt: profile.registeredAt
+      ? new Date(profile.registeredAt)
+      : seedProfile.registeredAt,
     startMeasurements: normalizeBodyMeasurements(
       profile.startMeasurements ?? seedProfile.startMeasurements,
     ),
@@ -246,16 +250,20 @@ export function loadStore(): GymmateStore {
   const parsedMetrics =
     storedMeasurementMetrics?.map(parseMeasurementMetric) ??
     defaults.measurementMetrics;
+  const profile = storedProfile
+    ? parseProfile(storedProfile, parsedMetrics)
+    : defaults.profile;
 
   return {
     workouts: storedWorkouts?.map(parseWorkout) ?? defaults.workouts,
-    profile: storedProfile
-      ? parseProfile(storedProfile, parsedMetrics)
-      : defaults.profile,
+    profile,
     bodyMetrics: consolidateMetricsByDay(
       storedMetrics?.map(parseBodyMetric) ?? defaults.bodyMetrics,
     ),
-    measurementMetrics: consolidateMeasurementMetrics(parsedMetrics),
+    measurementMetrics: sanitizeMeasurementMetrics(
+      consolidateMeasurementMetrics(parsedMetrics),
+      profile.registeredAt,
+    ),
     exercises: storedExercises ?? defaults.exercises,
   };
 }
@@ -284,7 +292,7 @@ export function saveBodyMetrics(bodyMetrics: BodyMetric[]) {
 export function saveMeasurementMetrics(measurementMetrics: MeasurementMetric[]) {
   writeJson(
     STORAGE_KEYS.measurementMetrics,
-    measurementMetrics.map(serializeMeasurementMetric),
+    consolidateMeasurementMetrics(measurementMetrics).map(serializeMeasurementMetric),
   );
   bumpStoreRevision();
 }

@@ -24,6 +24,7 @@ const EMPTY_API_STORE: GymmateStore = {
     currentWeight: 0,
     startMeasurements: emptyBodyMeasurements(),
     currentMeasurements: emptyBodyMeasurements(),
+    registeredAt: new Date(0),
   },
   bodyMetrics: [],
   measurementMetrics: [],

@@ -1,12 +1,13 @@
 import type { Prisma } from "@/generated/prisma";
 import { consolidateMetricsByDay } from "@/lib/body-metrics";
-import { consolidateMeasurementMetrics } from "@/lib/measurement-metrics";
+import { consolidateMeasurementMetrics, sanitizeMeasurementMetrics } from "@/lib/measurement-metrics";
 import { MEASUREMENT_KIND_TO_FIELD, currentMeasurementsToUserData, hasAnyMeasurement } from "@/lib/measurements";
 import {
   mapUserToProfile,
   resolveProfileMeasurements,
 } from "@/lib/profile-mapper";
 import { prisma } from "@/lib/prisma";
+import { replaceMeasurementMetrics } from "@/lib/server/profile-service";
 import type {
   BodyMetric,
   Exercise,
@@ -66,7 +67,7 @@ export async function loadUserStore(userId: string) {
     prisma.exercise.findMany({ orderBy: [{ muscleGroup: "asc" }, { name: "asc" }] }),
   ]);
 
-  const mappedMeasurementMetrics = consolidateMeasurementMetrics(
+  const consolidatedMeasurementMetrics = consolidateMeasurementMetrics(
     measurementMetrics.map(
       (metric): MeasurementMetric => ({
         date: metric.date,
@@ -75,6 +76,14 @@ export async function loadUserStore(userId: string) {
       }),
     ),
   );
+  const mappedMeasurementMetrics = sanitizeMeasurementMetrics(
+    consolidatedMeasurementMetrics,
+    user.createdAt,
+  );
+
+  if (mappedMeasurementMetrics.length !== consolidatedMeasurementMetrics.length) {
+    await replaceMeasurementMetrics(userId, mappedMeasurementMetrics);
+  }
 
   const baseProfile = mapProfile(user);
   const profile = resolveProfileMeasurements(

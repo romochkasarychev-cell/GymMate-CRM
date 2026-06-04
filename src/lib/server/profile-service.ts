@@ -13,9 +13,10 @@ import {
   applyMeasurementMetricUpdates,
   buildAllBaselineMeasurementMetrics,
   consolidateMeasurementMetrics,
+  sanitizeMeasurementMetrics,
   type MeasurementMetricUpdateOptions,
 } from "@/lib/measurement-metrics";
-import { mapUserStartMeasurements, mapUserToProfile, profileToUserUpdateData, resolveProfileMeasurements } from "@/lib/profile-mapper";
+import { mapUserToProfile, profileToUserUpdateData, resolveProfileMeasurements } from "@/lib/profile-mapper";
 import type { BodyMetric, MeasurementMetric, Profile } from "@/lib/types";
 
 export type ProfileUpdateOptions = {
@@ -52,12 +53,24 @@ async function listBodyMetrics(userId: string) {
 }
 
 async function listMeasurementMetrics(userId: string) {
-  const metrics = await prisma.measurementMetric.findMany({
-    where: { userId },
-    orderBy: [{ date: "asc" }, { kind: "asc" }],
-  });
+  const [metrics, user] = await Promise.all([
+    prisma.measurementMetric.findMany({
+      where: { userId },
+      orderBy: [{ date: "asc" }, { kind: "asc" }],
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { createdAt: true },
+    }),
+  ]);
 
-  return consolidateMeasurementMetrics(metrics.map(mapMeasurementMetric));
+  const consolidated = consolidateMeasurementMetrics(metrics.map(mapMeasurementMetric));
+
+  if (!user) {
+    return consolidated;
+  }
+
+  return sanitizeMeasurementMetrics(consolidated, user.createdAt);
 }
 
 async function replaceBodyMetrics(userId: string, metrics: BodyMetric[]) {
@@ -162,7 +175,7 @@ export async function updateProfile(
   const measurementSync = applyMeasurementMetricUpdates(
     measurementMetrics,
     profile,
-    mapUserStartMeasurements(existing),
+    mapUserToProfile(existing).startMeasurements,
     existing.createdAt,
     measurementOptions,
   );
@@ -178,7 +191,10 @@ export async function updateProfile(
   }
 
   if (measurementMetricsChanged) {
-    await replaceMeasurementMetrics(userId, measurementMetrics);
+    await replaceMeasurementMetrics(
+      userId,
+      consolidateMeasurementMetrics(measurementMetrics),
+    );
   }
 
   return resolveProfileMeasurements(mapUserToProfile(user), measurementMetrics);

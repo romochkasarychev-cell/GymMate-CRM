@@ -17,6 +17,7 @@ type UserProfileRecord = {
   goal: Profile["goal"];
   startWeight: number;
   currentWeight: number;
+  createdAt: Date;
   startShoulders: number;
   startChest: number;
   startWaist: number;
@@ -46,6 +47,7 @@ export function mapUserToProfile(user: UserProfileRecord): Profile {
     currentWeight: user.currentWeight,
     startMeasurements: mapUserStartMeasurements(user),
     currentMeasurements: mapUserCurrentMeasurements(user),
+    registeredAt: user.createdAt,
   };
 }
 
