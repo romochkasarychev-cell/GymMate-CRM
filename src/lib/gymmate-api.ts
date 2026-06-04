@@ -51,6 +51,15 @@ function parseStore(data: ApiStoreResponse): GymmateStore {
   };
 }
 
+function parseWorkout(
+  workout: ApiStoreResponse["workouts"][number],
+): Workout {
+  return {
+    ...workout,
+    date: new Date(workout.date),
+  };
+}
+
 export async function fetchStore(): Promise<GymmateStore> {
   const data = await parseJson<ApiStoreResponse>(await apiFetch("/api/store"));
   return parseStore(data);
@@ -84,6 +93,14 @@ export async function postWorkout(
     ...data.workout,
     date: new Date(data.workout.date),
   } satisfies Workout;
+}
+
+export async function fetchWorkout(id: string) {
+  const data = await parseJson<{ workout: ApiStoreResponse["workouts"][number] }>(
+    await apiFetch(`/api/workouts/${id}`),
+  );
+
+  return parseWorkout(data.workout);
 }
 
 export async function patchWorkout(

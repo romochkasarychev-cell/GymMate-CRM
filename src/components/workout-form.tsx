@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { addWorkout, createWorkout, updateWorkout } from "@/lib/gymmate-storage";
+import { isApiEnabled } from "@/lib/gymmate-api";
 import { muscleGroupLabels, muscleGroupOptions, workoutLabelLabels, workoutLabelOptions } from "@/lib/labels";
 import type { MuscleGroup, Workout, WorkoutLabel } from "@/lib/types";
-import { useGymmateStore } from "@/hooks/use-gymmate-store";
+import { useGymmateStore, reloadGymmateStore } from "@/hooks/use-gymmate-store";
 
 type WorkoutSetInput = {
   id: string;
@@ -99,6 +100,7 @@ export function WorkoutForm({ workout }: WorkoutFormProps) {
   const [label, setLabel] = useState<WorkoutLabel>(workout?.label ?? "MEDIUM");
   const [notes, setNotes] = useState(workout?.notes ?? "");
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [exerciseBlocks, setExerciseBlocks] = useState<ExerciseBlockInput[]>(() =>
     createInitialExerciseBlocks(workout, defaultExerciseId),
   );
@@ -180,39 +182,49 @@ export function WorkoutForm({ workout }: WorkoutFormProps) {
     );
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSaving(true);
+    setFormError(null);
 
-    const missingExercise = exerciseBlocks.some((block) => !block.exerciseId);
-    if (missingExercise) {
-      setFormError("Выберите упражнение для каждого блока.");
-      return;
+    try {
+      const missingExercise = exerciseBlocks.some((block) => !block.exerciseId);
+      if (missingExercise) {
+        setFormError("Выберите упражнение для каждого блока.");
+        return;
+      }
+
+      const flatSets = exerciseBlocks.flatMap((block) =>
+        block.sets.map((set) => ({
+          exerciseId: block.exerciseId,
+          weight: set.weight,
+          reps: set.reps,
+        })),
+      );
+
+      const nextWorkout = createWorkout(
+        label,
+        notes,
+        flatSets,
+        exercises,
+        workout ? { id: workout.id, date: workout.date } : undefined,
+      );
+
+      if (isEditing && workout) {
+        await updateWorkout(nextWorkout);
+        await reloadGymmateStore();
+        router.push(`/workouts/${workout.id}`);
+        return;
+      }
+
+      const savedWorkout = await addWorkout(nextWorkout);
+      await reloadGymmateStore();
+      router.push(`/workouts/${savedWorkout.id}`);
+    } catch {
+      setFormError("Не удалось сохранить тренировку. Попробуйте ещё раз.");
+    } finally {
+      setSaving(false);
     }
-
-    const flatSets = exerciseBlocks.flatMap((block) =>
-      block.sets.map((set) => ({
-        exerciseId: block.exerciseId,
-        weight: set.weight,
-        reps: set.reps,
-      })),
-    );
-
-    const nextWorkout = createWorkout(
-      label,
-      notes,
-      flatSets,
-      exercises,
-      workout ? { id: workout.id, date: workout.date } : undefined,
-    );
-
-    if (isEditing && workout) {
-      updateWorkout(nextWorkout);
-      router.push(`/workouts/${workout.id}`);
-      return;
-    }
-
-    addWorkout(nextWorkout);
-    router.push(`/workouts/${nextWorkout.id}`);
   }
 
   return (
@@ -406,11 +418,21 @@ export function WorkoutForm({ workout }: WorkoutFormProps) {
       ) : null}
 
       <p className="text-sm text-muted-foreground">
-        Данные сохраняются локально в браузере.
+        {isApiEnabled()
+          ? "Данные сохраняются в вашем аккаунте."
+          : "Данные сохраняются локально в браузере."}
       </p>
 
-      <Button type="submit" className="gym-btn-primary h-9 w-full px-4 sm:w-auto">
-        {isEditing ? "Сохранить изменения" : "Сохранить тренировку"}
+      <Button
+        type="submit"
+        className="gym-btn-primary h-9 w-full px-4 sm:w-auto"
+        disabled={saving}
+      >
+        {saving
+          ? "Сохранение…"
+          : isEditing
+            ? "Сохранить изменения"
+            : "Сохранить тренировку"}
       </Button>
     </form>
   );

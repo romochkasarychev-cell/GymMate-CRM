@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
+import { useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -12,24 +14,37 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useGymmateStore } from "@/hooks/use-gymmate-store";
+import { useWorkout } from "@/hooks/use-workout";
+import { refreshGymmateStore } from "@/hooks/use-gymmate-store";
 import { deleteWorkout } from "@/lib/gymmate-storage";
 import { isApiEnabled, removeWorkout } from "@/lib/gymmate-api";
-import { refreshGymmateStore } from "@/hooks/use-gymmate-store";
 import { WorkoutLabelBadge } from "@/components/workout-label-badge";
 import { calculateVolume, countWorkoutExercises, formatDate, formatExerciseCount } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import type { Workout } from "@/lib/types";
 
 type WorkoutDetailViewProps = {
   id: string;
+  initialWorkout?: Workout;
 };
 
-export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
+export function WorkoutDetailView({ id, initialWorkout }: WorkoutDetailViewProps) {
   const router = useRouter();
-  const { workouts } = useGymmateStore();
-  const workout = workouts.find((item) => item.id === id);
+  const { workout, loading, missing } = useWorkout(id, { initialWorkout });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  if (!workout) {
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="h-8 w-48 animate-pulse rounded-lg bg-secondary/40" />
+        <div className="h-10 w-72 animate-pulse rounded-lg bg-secondary/40" />
+        <div className="h-48 animate-pulse rounded-xl bg-secondary/30" />
+      </div>
+    );
+  }
+
+  if (missing || !workout) {
     notFound();
   }
 
@@ -46,27 +61,36 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
   const exerciseCount = countWorkoutExercises(workout.sets);
   const workoutId = workout.id;
 
-  async function handleDelete() {
-    const confirmed = window.confirm(
-      "Удалить эту тренировку? Действие нельзя отменить.",
-    );
+  async function handleDeleteConfirm() {
+    setDeleting(true);
 
-    if (!confirmed) return;
+    try {
+      if (isApiEnabled()) {
+        await removeWorkout(workoutId);
+        refreshGymmateStore();
+        router.push("/workouts");
+        return;
+      }
 
-    if (isApiEnabled()) {
-      await removeWorkout(workoutId);
-      refreshGymmateStore();
-      router.push("/workouts");
-      return;
-    }
-
-    if (deleteWorkout(workoutId)) {
-      router.push("/workouts");
+      if (deleteWorkout(workoutId)) {
+        router.push("/workouts");
+      }
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
     }
   }
 
   return (
     <div className="space-y-8">
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Удалить тренировку?"
+        description="Действие нельзя отменить. Тренировка и все подходы будут удалены."
+        loading={deleting}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
       <Link
         href="/workouts"
         className={cn(
@@ -94,7 +118,7 @@ export function WorkoutDetailView({ id }: WorkoutDetailViewProps) {
             <Button
               type="button"
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => setDeleteOpen(true)}
             >
               <Trash2 className="size-4" />
               Удалить

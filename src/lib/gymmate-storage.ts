@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
 } as const;
 
 export const GYMMATE_UPDATE_EVENT = "gymmate-update";
+export const GYMMATE_STORE_INVALIDATE_EVENT = "gymmate-store-invalidate";
 
 type StoredWorkout = Omit<Workout, "date"> & { date: string };
 type StoredBodyMetric = Omit<BodyMetric, "date"> & { date: string };
@@ -234,28 +235,35 @@ export function addExercise(name: string, muscleGroup: MuscleGroup) {
   return true;
 }
 
-export function addWorkout(workout: Workout) {
+export function addWorkout(workout: Workout): Workout | Promise<Workout> {
   if (isApiEnabled()) {
-    void (async () => {
+    return (async () => {
       const store = await fetchStore();
-      await apiPostWorkout(workout, store.exercises);
+      const created = await apiPostWorkout(workout, store.exercises);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(GYMMATE_STORE_INVALIDATE_EVENT));
+      }
       notifyUpdate();
+      return created;
     })();
-    return;
   }
 
   const store = loadStore();
   saveWorkouts([workout, ...store.workouts]);
+  return workout;
 }
 
-export function updateWorkout(workout: Workout) {
+export function updateWorkout(workout: Workout): boolean | Promise<boolean> {
   if (isApiEnabled()) {
-    void (async () => {
+    return (async () => {
       const store = await fetchStore();
       await apiPatchWorkout(workout, store.exercises);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(GYMMATE_STORE_INVALIDATE_EVENT));
+      }
       notifyUpdate();
+      return true;
     })();
-    return true;
   }
 
   const store = loadStore();

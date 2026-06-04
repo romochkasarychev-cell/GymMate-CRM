@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { WorkoutCalendar } from "@/components/workout-calendar";
 import { WorkoutPeriodControls } from "@/components/workout-period-controls";
+import { WorkoutPeriodStats } from "@/components/workout-period-stats";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
@@ -14,7 +15,9 @@ import { calculateVolume, formatDate, formatExerciseCount } from "@/lib/labels";
 import {
   filterWorkoutsByPeriod,
   formatPeriodLabel,
+  periodToDateRange,
   workoutPeriodLabels,
+  type DateRange,
   type WorkoutPeriod,
 } from "@/lib/workout-period";
 import { cn } from "@/lib/utils";
@@ -25,6 +28,7 @@ export function WorkoutsList() {
     type: "month",
     anchor: new Date(),
   });
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const visibleWorkouts = useMemo(() => {
     return filterWorkoutsByPeriod(workouts, period).sort(
@@ -32,23 +36,33 @@ export function WorkoutsList() {
     );
   }, [workouts, period]);
 
-  const periodStats = useMemo(() => {
-    const totalVolume = visibleWorkouts.reduce(
-      (total, workout) => total + calculateVolume(workout.sets),
-      0,
-    );
+  const appliedCalendarRange = useMemo((): DateRange | null => {
+    if (period.type !== "custom") {
+      return null;
+    }
 
-    return {
-      count: visibleWorkouts.length,
-      volume: Math.round(totalVolume),
-    };
-  }, [visibleWorkouts]);
+    return periodToDateRange(period);
+  }, [period]);
+
+  function handleCalendarRangeApply(range: DateRange) {
+    setPeriod({
+      type: "custom",
+      start: range.start,
+      end: range.end,
+    });
+    setCalendarOpen(false);
+  }
+
+  const periodHeading =
+    period.type === "custom"
+      ? `Произвольный период · ${formatPeriodLabel(period)}`
+      : `${workoutPeriodLabels[period.type]} · ${formatPeriodLabel(period)}`;
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Тренировки"
-        description="Календарь сессий и история нагрузок"
+        description="Статистика сессий и история нагрузок"
         action={
           <Link href="/workouts/new" className={cn(buttonVariants(), "gym-btn-primary")}>
             <Plus className="size-4" />
@@ -59,30 +73,24 @@ export function WorkoutsList() {
 
       <WorkoutPeriodControls period={period} onPeriodChange={setPeriod} />
 
-      <WorkoutCalendar workouts={workouts} period={period} onPeriodChange={setPeriod} />
+      <WorkoutPeriodStats
+        workouts={visibleWorkouts}
+        period={period}
+        calendarOpen={calendarOpen}
+        onCalendarToggle={() => setCalendarOpen((open) => !open)}
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="py-4">
-            <CardDescription>Тренировок за период</CardDescription>
-            <CardTitle className="font-heading text-3xl font-normal text-primary">
-              {periodStats.count}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
-          <CardHeader className="py-4">
-            <CardDescription>Общий объём за период</CardDescription>
-            <CardTitle className="font-heading text-3xl font-normal text-primary">
-              {periodStats.volume} кг
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      {calendarOpen ? (
+        <WorkoutCalendar
+          workouts={workouts}
+          appliedRange={appliedCalendarRange}
+          onRangeApply={handleCalendarRangeApply}
+        />
+      ) : null}
 
       <div className="space-y-3">
         <h2 className="font-heading text-lg font-normal uppercase tracking-wide">
-          {workoutPeriodLabels[period.type]} · {formatPeriodLabel(period)}
+          {periodHeading}
         </h2>
       </div>
 

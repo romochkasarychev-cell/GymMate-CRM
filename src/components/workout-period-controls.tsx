@@ -22,8 +22,13 @@ export function WorkoutPeriodControls({
   period,
   onPeriodChange,
 }: WorkoutPeriodControlsProps) {
+  const isCustom = period.type === "custom";
+
   function setPeriodType(type: WorkoutPeriodType) {
-    onPeriodChange({ type, anchor: period.anchor });
+    const anchor =
+      period.type === "custom" ? period.start : period.anchor;
+
+    onPeriodChange({ type, anchor });
   }
 
   return (
@@ -33,7 +38,7 @@ export function WorkoutPeriodControls({
         aria-label="Период отображения тренировок"
       >
         {periodTypes.map((type) => {
-          const active = period.type === type;
+          const active = !isCustom && period.type === type;
 
           return (
             <button
@@ -59,12 +64,15 @@ export function WorkoutPeriodControls({
           variant="ghost"
           size="icon-sm"
           aria-label="Предыдущий период"
+          disabled={isCustom}
           onClick={() => onPeriodChange(shiftPeriod(period, -1))}
         >
           <ChevronLeft className="size-4" />
         </Button>
 
         <span className="min-w-0 flex-1 px-1 text-center text-xs font-medium capitalize sm:min-w-[140px] sm:flex-none sm:px-0 sm:text-sm">
+          {isCustom ? "Произвольный период" : workoutPeriodLabels[period.type]}
+          {" · "}
           {formatPeriodLabel(period)}
         </span>
 
@@ -73,6 +81,7 @@ export function WorkoutPeriodControls({
           variant="ghost"
           size="icon-sm"
           aria-label="Следующий период"
+          disabled={isCustom}
           onClick={() => onPeriodChange(shiftPeriod(period, 1))}
         >
           <ChevronRight className="size-4" />

@@ -13,19 +13,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useGymmateStore } from "@/hooks/use-gymmate-store";
+import { useWorkout } from "@/hooks/use-workout";
 import { formatDate } from "@/lib/labels";
+import type { Workout } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type WorkoutEditViewProps = {
   id: string;
+  initialWorkout?: Workout;
 };
 
-export function WorkoutEditView({ id }: WorkoutEditViewProps) {
-  const { workouts } = useGymmateStore();
-  const workout = workouts.find((item) => item.id === id);
+export function WorkoutEditView({ id, initialWorkout }: WorkoutEditViewProps) {
+  const { workout, loading, missing } = useWorkout(id, { initialWorkout });
 
-  if (!workout) {
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="h-8 w-40 animate-pulse rounded-lg bg-secondary/40" />
+        <div className="h-10 w-64 animate-pulse rounded-lg bg-secondary/40" />
+        <div className="h-96 animate-pulse rounded-xl bg-secondary/30" />
+      </div>
+    );
+  }
+
+  if (missing || !workout) {
     notFound();
   }
 

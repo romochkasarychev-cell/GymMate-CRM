@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Library, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,11 @@ export function ReferencesView() {
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const exercisesByGroup = useMemo(() => {
     return muscleGroupOptions.reduce<Record<MuscleGroup, typeof exercises>>(
@@ -76,22 +82,37 @@ export function ReferencesView() {
     window.setTimeout(() => setSaved(false), 2000);
   }
 
-  async function handleDelete(exerciseId: string, exerciseName: string) {
+  async function handleDeleteConfirm() {
+    if (!pendingDelete) return;
+
     setDeleteError(null);
+    setDeleting(true);
 
-    const confirmed = window.confirm(
-      `Удалить упражнение «${exerciseName}»?`,
-    );
+    const { id: exerciseId, name: exerciseName } = pendingDelete;
 
-    if (!confirmed) return;
+    try {
+      if (isApiEnabled()) {
+        const result = await removeExercise(exerciseId);
 
-    if (isApiEnabled()) {
-      const result = await removeExercise(exerciseId);
+        if (result === "deleted") {
+          refreshGymmateStore();
+          return;
+        }
 
-      if (result === "deleted") {
-        refreshGymmateStore();
+        if (result === "in_use") {
+          setDeleteError(
+            `«${exerciseName}» используется в тренировках и не может быть удалено.`,
+          );
+          return;
+        }
+
+        setDeleteError("Упражнение не найдено.");
         return;
       }
+
+      const result = deleteExercise(exerciseId);
+
+      if (result === "deleted") return;
 
       if (result === "in_use") {
         setDeleteError(
@@ -101,25 +122,26 @@ export function ReferencesView() {
       }
 
       setDeleteError("Упражнение не найдено.");
-      return;
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
     }
-
-    const result = deleteExercise(exerciseId);
-
-    if (result === "deleted") return;
-
-    if (result === "in_use") {
-      setDeleteError(
-        `«${exerciseName}» используется в тренировках и не может быть удалено.`,
-      );
-      return;
-    }
-
-    setDeleteError("Упражнение не найдено.");
   }
 
   return (
     <div className="space-y-8">
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Удалить упражнение?"
+        description={
+          pendingDelete
+            ? `«${pendingDelete.name}» будет удалено из справочника.`
+            : ""
+        }
+        loading={deleting}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void handleDeleteConfirm()}
+      />
       <PageHeader
         title="Справочники"
         description="Упражнения для тренировок по группам мышц"
@@ -227,7 +249,12 @@ export function ReferencesView() {
                           size="icon-sm"
                           className="shrink-0 text-muted-foreground hover:text-destructive"
                           aria-label={`Удалить ${exercise.name}`}
-                          onClick={() => handleDelete(exercise.id, exercise.name)}
+                          onClick={() =>
+                            setPendingDelete({
+                              id: exercise.id,
+                              name: exercise.name,
+                            })
+                          }
                         >
                           <Trash2 className="size-4" />
                         </Button>

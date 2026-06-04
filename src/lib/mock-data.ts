@@ -28,37 +28,6 @@ export const users = [
     registeredAt: new Date("2025-11-12T10:00:00"),
     status: "ACTIVE",
   },
-  {
-    id: "u-2",
-    name: "Алексей",
-    email: "alexey@gymmate.local",
-    goal: "STRENGTH",
-    startWeight: 92,
-    currentWeight: 94.5,
-    registeredAt: new Date("2026-01-08T14:30:00"),
-    status: "ACTIVE",
-  },
-  {
-    id: "u-3",
-    name: "Мария",
-    email: "maria@gymmate.local",
-    goal: "WEIGHT_LOSS",
-    startWeight: 68,
-    currentWeight: 64.2,
-    registeredAt: new Date("2026-03-22T09:15:00"),
-    status: "ACTIVE",
-  },
-  {
-    id: "u-4",
-    name: "Дмитрий",
-    email: "dmitry@gymmate.local",
-    goal: "MUSCLE_GAIN",
-    startWeight: 75,
-    currentWeight: 77.8,
-    registeredAt: new Date("2025-06-03T16:45:00"),
-    status: "INACTIVE",
-    inactiveSince: new Date("2026-02-10T00:00:00"),
-  },
 ] as const satisfies User[];
 
 export const exercises: Exercise[] = [

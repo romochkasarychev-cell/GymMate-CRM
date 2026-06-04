@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { fetchStore, isApiEnabled } from "@/lib/gymmate-api";
 import {
+  GYMMATE_STORE_INVALIDATE_EVENT,
   GYMMATE_UPDATE_EVENT,
   getStoreRevision,
   loadStore,
@@ -72,6 +73,18 @@ function subscribe(onStoreChange: () => void) {
     onStoreChange();
   };
 
+  const handleInvalidate = () => {
+    clientSnapshot = null;
+
+    if (isApiEnabled()) {
+      void readApiSnapshot().then(() => onStoreChange());
+      return;
+    }
+
+    readLocalSnapshot();
+    onStoreChange();
+  };
+
   if (isApiEnabled()) {
     ensureApiSnapshot(onStoreChange);
   } else if (clientSnapshot === null) {
@@ -79,10 +92,12 @@ function subscribe(onStoreChange: () => void) {
   }
 
   window.addEventListener(GYMMATE_UPDATE_EVENT, handleChange);
+  window.addEventListener(GYMMATE_STORE_INVALIDATE_EVENT, handleInvalidate);
   window.addEventListener("storage", handleChange);
 
   return () => {
     window.removeEventListener(GYMMATE_UPDATE_EVENT, handleChange);
+    window.removeEventListener(GYMMATE_STORE_INVALIDATE_EVENT, handleInvalidate);
     window.removeEventListener("storage", handleChange);
   };
 }
@@ -114,7 +129,28 @@ export function useGymmateStore(): GymmateStore {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+export function useGymmateStoreLoading(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => isApiEnabled() && clientSnapshot === null,
+    () => isApiEnabled(),
+  );
+}
+
 export function refreshGymmateStore() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
+}
+
+export function reloadGymmateStore(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.resolve();
+  }
+
+  if (!isApiEnabled()) {
+    readLocalSnapshot();
+    return Promise.resolve();
+  }
+
+  return readApiSnapshot();
 }

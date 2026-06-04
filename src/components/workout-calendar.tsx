@@ -7,6 +7,7 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  isSameDay,
   isSameMonth,
   isToday,
   startOfMonth,
@@ -16,19 +17,21 @@ import {
 import { ru } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  getCalendarMonthForPeriod,
-  isDateInPeriod,
-  type WorkoutPeriod,
+  filterWorkoutsByRange,
+  formatDateRangeLabel,
+  isDateInRange,
+  normalizeDateRange,
+  type DateRange,
 } from "@/lib/workout-period";
 import type { Workout } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type WorkoutCalendarProps = {
   workouts: Workout[];
-  period: WorkoutPeriod;
-  onPeriodChange: (period: WorkoutPeriod) => void;
+  appliedRange: DateRange | null;
+  onRangeApply: (range: DateRange) => void;
 };
 
 function toDateKey(date: Date) {
@@ -37,14 +40,24 @@ function toDateKey(date: Date) {
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCalendarProps) {
+export function WorkoutCalendar({
+  workouts,
+  appliedRange,
+  onRangeApply,
+}: WorkoutCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(() =>
-    getCalendarMonthForPeriod(period),
+    startOfMonth(appliedRange?.start ?? new Date()),
   );
+  const [rangeStart, setRangeStart] = useState<Date | null>(appliedRange?.start ?? null);
+  const [rangeEnd, setRangeEnd] = useState<Date | null>(appliedRange?.end ?? null);
 
   useEffect(() => {
-    setCurrentMonth(getCalendarMonthForPeriod(period));
-  }, [period]);
+    if (appliedRange) {
+      setRangeStart(appliedRange.start);
+      setRangeEnd(appliedRange.end);
+      setCurrentMonth(startOfMonth(appliedRange.start));
+    }
+  }, [appliedRange]);
 
   const workoutsByDay = useMemo(() => {
     const map = new Map<string, Workout[]>();
@@ -59,21 +72,21 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
     return map;
   }, [workouts]);
 
-  const workoutsByMonth = useMemo(() => {
-    const map = new Map<number, Workout[]>();
-    const year = period.anchor.getFullYear();
-
-    for (const workout of workouts) {
-      if (workout.date.getFullYear() !== year) continue;
-
-      const monthIndex = workout.date.getMonth();
-      const existing = map.get(monthIndex) ?? [];
-      existing.push(workout);
-      map.set(monthIndex, existing);
+  const draftRange = useMemo(() => {
+    if (!rangeStart || !rangeEnd) {
+      return null;
     }
 
-    return map;
-  }, [workouts, period.anchor]);
+    return normalizeDateRange({ start: rangeStart, end: rangeEnd });
+  }, [rangeStart, rangeEnd]);
+
+  const previewWorkouts = useMemo(() => {
+    if (!draftRange) {
+      return [];
+    }
+
+    return filterWorkoutsByRange(workouts, draftRange);
+  }, [draftRange, workouts]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -84,117 +97,116 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
     return eachDayOfInterval({ start: gridStart, end: gridEnd });
   }, [currentMonth]);
 
-  if (period.type === "year") {
-    const year = period.anchor.getFullYear();
+  function handleDayClick(day: Date) {
+    if (!rangeStart || rangeEnd) {
+      setRangeStart(day);
+      setRangeEnd(null);
+      return;
+    }
 
-    return (
-      <Card className="gym-stat-card border-border/70 bg-card/80 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
-            Календарь — {year}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {Array.from({ length: 12 }, (_, monthIndex) => {
-              const monthDate = new Date(year, monthIndex, 1);
-              const monthWorkouts = workoutsByMonth.get(monthIndex) ?? [];
-              const hasWorkouts = monthWorkouts.length > 0;
-              const isCurrentMonth = isSameMonth(monthDate, new Date());
+    if (isSameDay(day, rangeStart)) {
+      setRangeEnd(day);
+      return;
+    }
 
-              return (
-                <button
-                  key={monthIndex}
-                  type="button"
-                  onClick={() =>
-                    onPeriodChange({
-                      type: "month",
-                      anchor: monthDate,
-                    })
-                  }
-                  className={cn(
-                    "rounded-xl border border-border/60 p-3 text-left transition-all hover:border-primary/40 hover:bg-secondary/50",
-                    hasWorkouts && "bg-primary/10 ring-1 ring-primary/25",
-                    isCurrentMonth && "ring-1 ring-accent/50",
-                  )}
-                >
-                  <p className="font-heading text-sm uppercase tracking-wide capitalize">
-                    {format(monthDate, "LLL", { locale: ru })}
-                  </p>
-                  <p className="mt-2 text-2xl font-medium text-primary">
-                    {monthWorkouts.length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {monthWorkouts.length === 1 ? "тренировка" : "тренировок"}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    );
+    if (day < rangeStart) {
+      setRangeEnd(rangeStart);
+      setRangeStart(day);
+      return;
+    }
+
+    setRangeEnd(day);
+  }
+
+  function handleResetSelection() {
+    setRangeStart(null);
+    setRangeEnd(null);
+  }
+
+  function handleApply() {
+    if (!draftRange) {
+      return;
+    }
+
+    onRangeApply(draftRange);
   }
 
   return (
-    <Card className="gym-stat-card border-border/70 bg-card/80 backdrop-blur-sm">
-      <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="font-heading text-lg font-normal uppercase tracking-wide sm:text-xl">
-          Календарь
+    <Card className="gym-stat-card mx-auto w-full max-w-md border-border/70 bg-card/80 backdrop-blur-sm">
+      <CardHeader className="space-y-1 py-3">
+        <CardTitle className="font-heading text-sm font-normal uppercase tracking-wide">
+          Выбор периода
         </CardTitle>
-        <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-center">
+        <CardDescription className="text-xs">
+          Нажмите дату начала, затем дату окончания периода
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-3 pt-0">
+        <div className="flex items-center justify-between gap-1">
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
+            className="size-7"
             aria-label="Предыдущий месяц"
             onClick={() => setCurrentMonth((month) => subMonths(month, 1))}
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-3.5" />
           </Button>
-          <span className="min-w-0 flex-1 text-center text-sm font-medium capitalize sm:min-w-[140px] sm:flex-none">
+          <span className="min-w-[120px] text-center text-xs font-medium capitalize">
             {format(currentMonth, "LLLL yyyy", { locale: ru })}
           </span>
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
+            className="size-7"
             aria-label="Следующий месяц"
             onClick={() => setCurrentMonth((month) => addMonths(month, 1))}
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-3.5" />
           </Button>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium text-muted-foreground">
           {weekDays.map((day) => (
-            <div key={day} className="py-1">
+            <div key={day} className="py-0.5">
               {day}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+        <div className="grid grid-cols-7 gap-0.5">
           {calendarDays.map((day) => {
             const key = toDateKey(day);
             const dayWorkouts = workoutsByDay.get(key) ?? [];
             const hasWorkout = dayWorkouts.length > 0;
             const inMonth = isSameMonth(day, currentMonth);
-            const inPeriod = isDateInPeriod(day, period);
             const today = isToday(day);
+            const isRangeStart = rangeStart ? isSameDay(day, rangeStart) : false;
+            const isRangeEnd = rangeEnd ? isSameDay(day, rangeEnd) : false;
+            const inDraftRange = draftRange ? isDateInRange(day, draftRange) : false;
+            const inAppliedRange =
+              appliedRange && !rangeStart && !rangeEnd
+                ? isDateInRange(day, appliedRange)
+                : false;
+            const inRange = inDraftRange || inAppliedRange;
 
             return (
-              <div
+              <button
                 key={key}
+                type="button"
+                onClick={() => inMonth && handleDayClick(day)}
+                disabled={!inMonth}
                 className={cn(
-                  "relative flex aspect-square min-h-8 flex-col items-center justify-center rounded-md text-[11px] sm:rounded-lg sm:text-sm",
-                  inMonth ? "text-foreground" : "text-muted-foreground/40",
-                  period.type === "week" && inPeriod && inMonth && "bg-accent/15",
-                  period.type === "month" && inPeriod && inMonth && "bg-primary/5",
-                  hasWorkout && inMonth && "ring-1 ring-primary/20",
-                  hasWorkout && inMonth && inPeriod && "bg-primary/15 ring-primary/30",
+                  "relative flex h-8 flex-col items-center justify-center rounded text-[10px] transition-colors sm:text-xs",
+                  inMonth
+                    ? "cursor-pointer text-foreground hover:bg-secondary/60"
+                    : "cursor-default text-muted-foreground/40",
+                  inRange && inMonth && "bg-primary/15",
+                  (isRangeStart || isRangeEnd) && inMonth && "bg-primary/30 ring-1 ring-primary/40",
+                  hasWorkout && inMonth && !inRange && "ring-1 ring-primary/20",
                   today && "ring-1 ring-accent/50",
                 )}
                 aria-label={
@@ -203,29 +215,67 @@ export function WorkoutCalendar({ workouts, period, onPeriodChange }: WorkoutCal
                     : format(day, "d MMMM", { locale: ru })
                 }
               >
-                <span className="font-medium">{format(day, "d")}</span>
+                <span className="font-medium leading-none">{format(day, "d")}</span>
                 {hasWorkout && inMonth ? (
-                  <span className="mt-0.5 size-1.5 rounded-full bg-primary" />
+                  <span className="mt-0.5 size-1 rounded-full bg-primary" />
                 ) : null}
-              </div>
+              </button>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-primary" />
+        <div className="rounded-xl border border-border/60 bg-secondary/20 px-3 py-2.5">
+          {draftRange ? (
+            <>
+              <p className="text-xs text-muted-foreground capitalize">
+                {formatDateRangeLabel(draftRange)}
+              </p>
+              <p className="font-heading text-2xl font-normal text-primary">
+                {previewWorkouts.length}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {previewWorkouts.length === 1 ? "тренировка за период" : "тренировок за период"}
+              </p>
+            </>
+          ) : rangeStart ? (
+            <p className="text-xs text-muted-foreground">
+              Выберите дату окончания периода
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Выберите дату начала периода
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            className="gym-btn-primary flex-1 sm:flex-none"
+            disabled={!draftRange}
+            onClick={handleApply}
+          >
+            Применить период
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-primary/30"
+            disabled={!rangeStart}
+            onClick={handleResetSelection}
+          >
+            Сбросить
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-2 text-[10px] text-muted-foreground sm:text-xs">
+          <span className="inline-flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-primary" />
             День с тренировкой
           </span>
-          {period.type === "week" ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-4 rounded bg-accent/15 ring-1 ring-accent/40" />
-              Выбранная неделя
-            </span>
-          ) : null}
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-4 rounded ring-1 ring-accent/50" />
-            Сегодня
+          <span className="inline-flex items-center gap-1">
+            <span className="size-3 rounded bg-primary/15 ring-1 ring-primary/30" />
+            Выбранный период
           </span>
         </div>
       </CardContent>
