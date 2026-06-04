@@ -1,11 +1,11 @@
 import { errorResponse, jsonResponse } from "@/lib/api/http";
-import { getDemoUser } from "@/lib/server/demo-user";
+import { requireSessionUser } from "@/lib/server/auth-user";
 import { updateProfile } from "@/lib/server/profile-service";
 import type { Profile } from "@/lib/types";
 
 export async function PATCH(request: Request) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const body = (await request.json()) as {
       profile: Profile;
       previousWeight?: number;

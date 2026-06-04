@@ -39,6 +39,7 @@ copy .env.example .env.local
 
 ```env
 DATABASE_URL="postgresql://gymmate:gymmate@localhost:5432/gymmate"
+AUTH_SECRET="your-long-random-secret-min-16-chars"
 NEXT_PUBLIC_USE_API="true"
 ```
 
@@ -56,12 +57,19 @@ npm run db:seed
 npm run dev
 ```
 
-Demo-пользователь: `demo@gymmate.local` (без логина на первом этапе).
+Откройте [http://localhost:3000/login](http://localhost:3000/login).
+
+**Demo-аккаунт после seed:**
+- Email: `demo@gymmate.local`
+- Пароль: `demo123` (или `DEMO_USER_PASSWORD` из env)
+
+Новые пользователи регистрируются на `/register`. Каждый видит только свои тренировки и профиль.
 
 ## Страницы
 
 | Маршрут | Описание |
 |---------|----------|
+| `/login`, `/register` | Вход и регистрация (при `NEXT_PUBLIC_USE_API=true`) |
 | `/dashboard` | Прогресс и графики |
 | `/workouts` | Календарь и история тренировок |
 | `/workouts/new` | Новая тренировка |
@@ -75,6 +83,10 @@ Demo-пользователь: `demo@gymmate.local` (без логина на п
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
+| POST | `/api/auth/register` | Регистрация |
+| POST | `/api/auth/login` | Вход (JWT в httpOnly cookie) |
+| POST | `/api/auth/logout` | Выход |
+| GET | `/api/auth/me` | Текущий пользователь |
 | GET | `/api/store` | Полный store (profile, workouts, metrics, exercises) |
 | PATCH | `/api/profile` | Обновить профиль |
 | GET/POST | `/api/workouts` | Список / создать |

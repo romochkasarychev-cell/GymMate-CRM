@@ -1,5 +1,5 @@
 import { errorResponse, jsonResponse } from "@/lib/api/http";
-import { getDemoUser } from "@/lib/server/demo-user";
+import { requireSessionUser } from "@/lib/server/auth-user";
 import {
   createWorkout,
   listWorkouts,
@@ -7,9 +7,9 @@ import {
 } from "@/lib/server/workout-service";
 import type { Workout } from "@/lib/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const workouts = await listWorkouts(user.id);
     return jsonResponse({ workouts });
   } catch (error) {
@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const body = (await request.json()) as {
       workout: Workout;
       exercises: { id: string; name: string }[];

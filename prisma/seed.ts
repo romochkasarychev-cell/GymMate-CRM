@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma";
+import { hashPassword } from "../src/lib/password";
 import {
   articles,
   bodyMetrics,
@@ -12,6 +13,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const demoEmail = process.env.DEMO_USER_EMAIL ?? profile.email;
+  const demoPassword = process.env.DEMO_USER_PASSWORD ?? "demo123";
+  const passwordHash = await hashPassword(demoPassword);
 
   const user = await prisma.user.upsert({
     where: { email: demoEmail },
@@ -23,6 +26,7 @@ async function main() {
       startWeight: profile.startWeight,
       currentWeight: profile.currentWeight,
       status: "ACTIVE",
+      passwordHash,
     },
     create: {
       email: demoEmail,
@@ -33,6 +37,7 @@ async function main() {
       startWeight: profile.startWeight,
       currentWeight: profile.currentWeight,
       status: "ACTIVE",
+      passwordHash,
     },
   });
 
@@ -122,7 +127,9 @@ async function main() {
     });
   }
 
-  console.log(`Seeded demo user ${user.email}, ${exercises.length} exercises, ${workouts.length} workouts.`);
+  console.log(
+    `Seeded demo user ${user.email} (password: ${demoPassword}), ${exercises.length} exercises, ${workouts.length} workouts.`,
+  );
 }
 
 main()

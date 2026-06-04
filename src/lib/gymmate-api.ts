@@ -5,6 +5,16 @@ export function isApiEnabled() {
   return process.env.NEXT_PUBLIC_USE_API === "true";
 }
 
+const apiFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+  fetch(input, { ...init, credentials: "include" });
+
+function redirectIfUnauthorized(response: Response) {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.href = "/login";
+    throw new Error("Unauthorized");
+  }
+}
+
 type ApiStoreResponse = {
   profile: Profile;
   workouts: Array<Omit<Workout, "date"> & { date: string }>;
@@ -13,7 +23,10 @@ type ApiStoreResponse = {
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
+  redirectIfUnauthorized(response);
+
   if (!response.ok) {
+    redirectIfUnauthorized(response);
     const body = (await response.json().catch(() => null)) as {
       message?: string;
     } | null;
@@ -39,13 +52,13 @@ function parseStore(data: ApiStoreResponse): GymmateStore {
 }
 
 export async function fetchStore(): Promise<GymmateStore> {
-  const data = await parseJson<ApiStoreResponse>(await fetch("/api/store"));
+  const data = await parseJson<ApiStoreResponse>(await apiFetch("/api/store"));
   return parseStore(data);
 }
 
 export async function patchProfile(profile: Profile, previousWeight?: number) {
   const data = await parseJson<{ profile: Profile }>(
-    await fetch("/api/profile", {
+    await apiFetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, previousWeight }),
@@ -60,7 +73,7 @@ export async function postWorkout(
   exercises: { id: string; name: string }[],
 ) {
   const data = await parseJson<{ workout: ApiStoreResponse["workouts"][number] }>(
-    await fetch("/api/workouts", {
+    await apiFetch("/api/workouts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workout, exercises }),
@@ -78,7 +91,7 @@ export async function patchWorkout(
   exercises: { id: string; name: string }[],
 ) {
   const data = await parseJson<{ workout: ApiStoreResponse["workouts"][number] }>(
-    await fetch(`/api/workouts/${workout.id}`, {
+    await apiFetch(`/api/workouts/${workout.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workout, exercises }),
@@ -93,18 +106,19 @@ export async function patchWorkout(
 
 export async function removeWorkout(id: string) {
   await parseJson<{ ok: boolean }>(
-    await fetch(`/api/workouts/${id}`, { method: "DELETE" }),
+    await apiFetch(`/api/workouts/${id}`, { method: "DELETE" }),
   );
 }
 
 export async function postExercise(name: string, muscleGroup: MuscleGroup) {
-  const response = await fetch("/api/exercises", {
+  const response = await apiFetch("/api/exercises", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, muscleGroup }),
   });
 
   if (!response.ok) {
+    redirectIfUnauthorized(response);
     const body = (await response.json().catch(() => null)) as {
       message?: string;
     } | null;
@@ -115,7 +129,9 @@ export async function postExercise(name: string, muscleGroup: MuscleGroup) {
 }
 
 export async function removeExercise(id: string) {
-  const response = await fetch(`/api/exercises/${id}`, { method: "DELETE" });
+  const response = await apiFetch(`/api/exercises/${id}`, { method: "DELETE" });
+
+  redirectIfUnauthorized(response);
 
   if (response.ok) {
     return "deleted" as const;
@@ -137,6 +153,6 @@ export async function removeExercise(id: string) {
 
 export async function fetchArticles() {
   return parseJson<{ articles: import("@/lib/types").Article[] }>(
-    await fetch("/api/articles"),
+    await apiFetch("/api/articles"),
   );
 }

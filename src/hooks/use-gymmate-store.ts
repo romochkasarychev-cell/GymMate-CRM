@@ -4,16 +4,30 @@ import { useSyncExternalStore } from "react";
 import { fetchStore, isApiEnabled } from "@/lib/gymmate-api";
 import {
   GYMMATE_UPDATE_EVENT,
-  getDefaultStore,
   getStoreRevision,
   loadStore,
   type GymmateStore,
 } from "@/lib/gymmate-storage";
 
+const EMPTY_API_STORE: GymmateStore = {
+  workouts: [],
+  profile: {
+    name: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    goal: "MUSCLE_GAIN",
+    startWeight: 0,
+    currentWeight: 0,
+  },
+  bodyMetrics: [],
+  exercises: [],
+};
+
 let clientSnapshot: GymmateStore | null = null;
 let cachedRevision = -1;
 let apiFetchVersion = 0;
-const serverSnapshot: GymmateStore = getDefaultStore();
+let apiFetchPromise: Promise<void> | null = null;
 
 function readLocalSnapshot(): GymmateStore {
   clientSnapshot = loadStore();
@@ -34,6 +48,19 @@ async function readApiSnapshot() {
   }
 }
 
+function ensureApiSnapshot(onStoreChange: () => void) {
+  if (apiFetchPromise) {
+    void apiFetchPromise.then(onStoreChange);
+    return;
+  }
+
+  apiFetchPromise = readApiSnapshot().finally(() => {
+    apiFetchPromise = null;
+  });
+
+  void apiFetchPromise.then(onStoreChange);
+}
+
 function subscribe(onStoreChange: () => void) {
   const handleChange = () => {
     if (isApiEnabled()) {
@@ -46,9 +73,7 @@ function subscribe(onStoreChange: () => void) {
   };
 
   if (isApiEnabled()) {
-    if (clientSnapshot === null) {
-      void readApiSnapshot().then(() => onStoreChange());
-    }
+    ensureApiSnapshot(onStoreChange);
   } else if (clientSnapshot === null) {
     readLocalSnapshot();
   }
@@ -63,21 +88,26 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot(): GymmateStore {
+  if (clientSnapshot !== null) {
+    return clientSnapshot;
+  }
+
   if (isApiEnabled()) {
-    return clientSnapshot ?? getDefaultStore();
+    return EMPTY_API_STORE;
   }
 
-  const revision = getStoreRevision();
-
-  if (clientSnapshot === null || cachedRevision !== revision) {
-    return readLocalSnapshot();
-  }
-
-  return clientSnapshot;
+  return readLocalSnapshot();
 }
 
 function getServerSnapshot(): GymmateStore {
-  return serverSnapshot;
+  return EMPTY_API_STORE;
+}
+
+export function resetGymmateStoreCache() {
+  clientSnapshot = null;
+  cachedRevision = -1;
+  apiFetchVersion += 1;
+  apiFetchPromise = null;
 }
 
 export function useGymmateStore(): GymmateStore {

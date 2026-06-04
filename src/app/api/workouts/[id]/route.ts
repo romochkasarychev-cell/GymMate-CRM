@@ -1,5 +1,5 @@
 import { errorResponse, jsonResponse } from "@/lib/api/http";
-import { getDemoUser } from "@/lib/server/demo-user";
+import { requireSessionUser } from "@/lib/server/auth-user";
 import {
   deleteWorkout,
   getWorkout,
@@ -12,9 +12,9 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const { id } = await context.params;
     const workout = await getWorkout(user.id, id);
     return jsonResponse({ workout });
@@ -25,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const { id } = await context.params;
     const body = (await request.json()) as {
       workout: Workout;
@@ -44,9 +44,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const { id } = await context.params;
     await deleteWorkout(user.id, id);
     return jsonResponse({ ok: true });

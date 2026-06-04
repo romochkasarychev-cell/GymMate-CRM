@@ -1,10 +1,10 @@
 import { errorResponse, jsonResponse } from "@/lib/api/http";
-import { getDemoUser } from "@/lib/server/demo-user";
+import { requireSessionUser } from "@/lib/server/auth-user";
 import { loadUserStore } from "@/lib/server/store-service";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const user = await getDemoUser();
+    const user = await requireSessionUser(request);
     const store = await loadUserStore(user.id);
     return jsonResponse(store);
   } catch (error) {
