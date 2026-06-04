@@ -41,6 +41,17 @@ enum ArticleCategory {
   RECOVERY
 }
 
+enum MeasurementKind {
+  SHOULDERS
+  CHEST
+  WAIST
+  HIPS
+  ARM_RIGHT
+  ARM_LEFT
+  LEG_RIGHT
+  LEG_LEFT
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -51,13 +62,42 @@ model User {
   goal          Goal       @default(MUSCLE_GAIN)
   startWeight   Float      @default(0)
   currentWeight Float      @default(0)
+  startShoulders Float     @default(0)
+  startChest     Float     @default(0)
+  startWaist     Float     @default(0)
+  startHips      Float     @default(0)
+  startArmRight  Float     @default(0)
+  startArmLeft   Float     @default(0)
+  startLegRight  Float     @default(0)
+  startLegLeft   Float     @default(0)
+  currentShoulders Float   @default(0)
+  currentChest     Float   @default(0)
+  currentWaist     Float   @default(0)
+  currentHips      Float   @default(0)
+  currentArmRight  Float   @default(0)
+  currentArmLeft   Float   @default(0)
+  currentLegRight  Float   @default(0)
+  currentLegLeft   Float   @default(0)
   status        UserStatus @default(ACTIVE)
   inactiveSince DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  workouts    Workout[]
-  bodyMetrics BodyMetric[]
+  workouts           Workout[]
+  bodyMetrics          BodyMetric[]
+  measurementMetrics   MeasurementMetric[]
+}
+
+model MeasurementMetric {
+  id     String           @id @default(cuid())
+  userId String
+  date   DateTime
+  kind   MeasurementKind
+  value  Float
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, date])
 }
 
 model Exercise {

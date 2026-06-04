@@ -2,6 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 import { fetchStore, isApiEnabled } from "@/lib/gymmate-api";
+import { emptyBodyMeasurements, normalizeBodyMeasurements } from "@/lib/measurements";
+import type { Profile } from "@/lib/types";
 import {
   GYMMATE_STORE_INVALIDATE_EVENT,
   GYMMATE_UPDATE_EVENT,
@@ -20,8 +22,11 @@ const EMPTY_API_STORE: GymmateStore = {
     goal: "MUSCLE_GAIN",
     startWeight: 0,
     currentWeight: 0,
+    startMeasurements: emptyBodyMeasurements(),
+    currentMeasurements: emptyBodyMeasurements(),
   },
   bodyMetrics: [],
+  measurementMetrics: [],
   exercises: [],
 };
 
@@ -29,6 +34,7 @@ let clientSnapshot: GymmateStore | null = null;
 let cachedRevision = -1;
 let apiFetchVersion = 0;
 let apiFetchPromise: Promise<void> | null = null;
+let apiLoadError: string | null = null;
 
 function readLocalSnapshot(): GymmateStore {
   clientSnapshot = loadStore();
@@ -43,9 +49,14 @@ async function readApiSnapshot() {
     const store = await fetchStore();
     if (version === apiFetchVersion) {
       clientSnapshot = store;
+      apiLoadError = null;
     }
   } catch (error) {
     console.error("Failed to load store from API:", error);
+    if (version === apiFetchVersion) {
+      apiLoadError =
+        error instanceof Error ? error.message : "Не удалось загрузить данные";
+    }
   }
 }
 
@@ -74,8 +85,6 @@ function subscribe(onStoreChange: () => void) {
   };
 
   const handleInvalidate = () => {
-    clientSnapshot = null;
-
     if (isApiEnabled()) {
       void readApiSnapshot().then(() => onStoreChange());
       return;
@@ -123,6 +132,7 @@ export function resetGymmateStoreCache() {
   cachedRevision = -1;
   apiFetchVersion += 1;
   apiFetchPromise = null;
+  apiLoadError = null;
 }
 
 export function useGymmateStore(): GymmateStore {
@@ -132,9 +142,29 @@ export function useGymmateStore(): GymmateStore {
 export function useGymmateStoreLoading(): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => isApiEnabled() && clientSnapshot === null,
+    () => isApiEnabled() && clientSnapshot === null && apiLoadError === null,
     () => isApiEnabled(),
   );
+}
+
+export function useGymmateStoreError(): string | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => (isApiEnabled() ? apiLoadError : null),
+    () => null,
+  );
+}
+
+export function retryGymmateStoreLoad() {
+  if (typeof window === "undefined" || !isApiEnabled()) {
+    return;
+  }
+
+  apiLoadError = null;
+  clientSnapshot = null;
+  apiFetchVersion += 1;
+  apiFetchPromise = null;
+  window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
 }
 
 export function refreshGymmateStore() {
@@ -149,8 +179,29 @@ export function reloadGymmateStore(): Promise<void> {
 
   if (!isApiEnabled()) {
     readLocalSnapshot();
+    window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
     return Promise.resolve();
   }
 
-  return readApiSnapshot();
+  return readApiSnapshot().then(() => {
+    window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
+  });
+}
+
+export function applyGymmateProfile(profile: Profile) {
+  const nextProfile = {
+    ...profile,
+    startMeasurements: normalizeBodyMeasurements(profile.startMeasurements),
+    currentMeasurements: normalizeBodyMeasurements(profile.currentMeasurements),
+  };
+
+  clientSnapshot = clientSnapshot
+    ? { ...clientSnapshot, profile: nextProfile }
+    : isApiEnabled()
+      ? { ...EMPTY_API_STORE, profile: nextProfile }
+      : { ...readLocalSnapshot(), profile: nextProfile };
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(GYMMATE_UPDATE_EVENT));
+  }
 }

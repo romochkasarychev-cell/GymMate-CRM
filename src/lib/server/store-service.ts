@@ -1,8 +1,16 @@
 import type { Prisma } from "@/generated/prisma";
+import { consolidateMetricsByDay } from "@/lib/body-metrics";
+import { consolidateMeasurementMetrics } from "@/lib/measurement-metrics";
+import { MEASUREMENT_KIND_TO_FIELD, currentMeasurementsToUserData, hasAnyMeasurement } from "@/lib/measurements";
+import {
+  mapUserToProfile,
+  resolveProfileMeasurements,
+} from "@/lib/profile-mapper";
 import { prisma } from "@/lib/prisma";
 import type {
   BodyMetric,
   Exercise,
+  MeasurementMetric,
   Profile,
   Workout,
   WorkoutSet,
@@ -35,28 +43,12 @@ function mapWorkout(
   };
 }
 
-function mapProfile(user: {
-  name: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  goal: Profile["goal"];
-  startWeight: number;
-  currentWeight: number;
-}): Profile {
-  return {
-    name: user.name,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    goal: user.goal,
-    startWeight: user.startWeight,
-    currentWeight: user.currentWeight,
-  };
+function mapProfile(user: Parameters<typeof mapUserToProfile>[0]): Profile {
+  return mapUserToProfile(user);
 }
 
 export async function loadUserStore(userId: string) {
-  const [user, workouts, bodyMetrics, exercises] = await Promise.all([
+  const [user, workouts, bodyMetrics, measurementMetrics, exercises] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId } }),
     prisma.workout.findMany({
       where: { userId },
@@ -67,18 +59,51 @@ export async function loadUserStore(userId: string) {
       where: { userId },
       orderBy: { date: "asc" },
     }),
+    prisma.measurementMetric.findMany({
+      where: { userId },
+      orderBy: [{ date: "asc" }, { kind: "asc" }],
+    }),
     prisma.exercise.findMany({ orderBy: [{ muscleGroup: "asc" }, { name: "asc" }] }),
   ]);
 
-  return {
-    profile: mapProfile(user),
-    workouts: workouts.map(mapWorkout),
-    bodyMetrics: bodyMetrics.map(
-      (metric): BodyMetric => ({
+  const mappedMeasurementMetrics = consolidateMeasurementMetrics(
+    measurementMetrics.map(
+      (metric): MeasurementMetric => ({
         date: metric.date,
-        weight: metric.weight,
+        kind: MEASUREMENT_KIND_TO_FIELD[metric.kind],
+        value: metric.value,
       }),
     ),
+  );
+
+  const baseProfile = mapProfile(user);
+  const profile = resolveProfileMeasurements(
+    baseProfile,
+    mappedMeasurementMetrics,
+  );
+
+  if (
+    !hasAnyMeasurement(baseProfile.currentMeasurements) &&
+    hasAnyMeasurement(profile.currentMeasurements)
+  ) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: currentMeasurementsToUserData(profile.currentMeasurements),
+    });
+  }
+
+  return {
+    profile,
+    workouts: workouts.map(mapWorkout),
+    bodyMetrics: consolidateMetricsByDay(
+      bodyMetrics.map(
+        (metric): BodyMetric => ({
+          date: metric.date,
+          weight: metric.weight,
+        }),
+      ),
+    ),
+    measurementMetrics: mappedMeasurementMetrics,
     exercises: exercises.map(
       (exercise): Exercise => ({
         id: exercise.id,

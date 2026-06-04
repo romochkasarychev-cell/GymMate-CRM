@@ -11,13 +11,18 @@ import { cn } from "@/lib/utils";
 
 export function DashboardView() {
   const store = useGymmateStore();
-  const data = getDashboardData(store.workouts, store.bodyMetrics, store.profile);
+  const data = getDashboardData(
+    store.workouts,
+    store.bodyMetrics,
+    store.measurementMetrics,
+    store.profile,
+  );
 
   return (
     <div className="space-y-6 sm:space-y-8">
       <PageHeader
         title="Прогресс"
-        description="Обзор тренировок, объёма и динамики веса"
+        description="Обзор тренировок, объёма, веса и замеров"
         action={
           <Link href="/workouts/new" className={cn(buttonVariants(), "gym-btn-primary")}>
             Новая тренировка
@@ -77,6 +82,7 @@ export function DashboardView() {
 
       <DashboardCharts
         weightData={data.weightData}
+        measurementCharts={data.measurementCharts}
         volumeData={data.volumeData}
       />
     </div>

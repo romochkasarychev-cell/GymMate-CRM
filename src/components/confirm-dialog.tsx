@@ -17,7 +17,9 @@ type ConfirmDialogProps = {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmVariant?: "default" | "destructive";
   loading?: boolean;
+  loadingLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -28,7 +30,9 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Удалить",
   cancelLabel = "Отмена",
+  confirmVariant = "destructive",
   loading = false,
+  loadingLabel = "Удаление…",
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -101,11 +105,11 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant="destructive"
+            variant={confirmVariant}
             disabled={loading}
             onClick={onConfirm}
           >
-            {loading ? "Удаление…" : confirmLabel}
+            {loading ? loadingLabel : confirmLabel}
           </Button>
         </CardContent>
       </Card>

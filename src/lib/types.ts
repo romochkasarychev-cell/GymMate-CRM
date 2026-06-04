@@ -49,6 +49,36 @@ export type Article = {
   category: ArticleCategory;
 };
 
+export type BodyMeasurements = {
+  shoulders: number;
+  chest: number;
+  waist: number;
+  hips: number;
+  armRight: number;
+  armLeft: number;
+  legRight: number;
+  legLeft: number;
+};
+
+/** @deprecated Use BodyMeasurements */
+export type StartMeasurements = BodyMeasurements;
+
+export type MeasurementKind =
+  | "shoulders"
+  | "chest"
+  | "waist"
+  | "hips"
+  | "armRight"
+  | "armLeft"
+  | "legRight"
+  | "legLeft";
+
+export type MeasurementMetric = {
+  date: Date;
+  kind: MeasurementKind;
+  value: number;
+};
+
 export type Profile = {
   name: string;
   lastName: string;
@@ -57,6 +87,8 @@ export type Profile = {
   goal: Goal;
   startWeight: number;
   currentWeight: number;
+  startMeasurements: BodyMeasurements;
+  currentMeasurements: BodyMeasurements;
 };
 
 export type UserStatus = "ACTIVE" | "INACTIVE";

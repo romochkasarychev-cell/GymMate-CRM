@@ -1,9 +1,19 @@
 import {
-  bodyMetrics as seedBodyMetrics,
-  exercises as seedExercises,
-  profile as seedProfile,
-  workouts as seedWorkouts,
-} from "@/lib/mock-data";
+  consolidateMetricsByDay,
+  recordCurrentMetric,
+  buildBaselineBodyMetrics,
+  upsertStartMetric,
+} from "@/lib/body-metrics";
+import {
+  normalizeBodyMeasurements,
+} from "@/lib/measurements";
+import {
+  applyMeasurementMetricUpdates,
+  buildAllBaselineMeasurementMetrics,
+  consolidateMeasurementMetrics,
+  type MeasurementMetricUpdateOptions,
+} from "@/lib/measurement-metrics";
+import { resolveProfileMeasurements } from "@/lib/profile-mapper";
 import {
   fetchStore,
   isApiEnabled,
@@ -13,9 +23,15 @@ import {
   postWorkout as apiPostWorkout,
   removeWorkout as apiRemoveWorkout,
 } from "@/lib/gymmate-api";
+import {
+  exercises as seedExercises,
+  profile as seedProfile,
+  workouts as seedWorkouts,
+} from "@/lib/mock-data";
 import type {
   BodyMetric,
   Exercise,
+  MeasurementMetric,
   MuscleGroup,
   Profile,
   Workout,
@@ -30,6 +46,7 @@ const STORAGE_KEYS = {
   workouts: "gymmate:workouts",
   profile: "gymmate:profile",
   bodyMetrics: "gymmate:bodyMetrics",
+  measurementMetrics: "gymmate:measurementMetrics",
   exercises: "gymmate:exercises",
 } as const;
 
@@ -38,11 +55,13 @@ export const GYMMATE_STORE_INVALIDATE_EVENT = "gymmate-store-invalidate";
 
 type StoredWorkout = Omit<Workout, "date"> & { date: string };
 type StoredBodyMetric = Omit<BodyMetric, "date"> & { date: string };
+type StoredMeasurementMetric = Omit<MeasurementMetric, "date"> & { date: string };
 
 export type GymmateStore = {
   workouts: Workout[];
   profile: Profile;
   bodyMetrics: BodyMetric[];
+  measurementMetrics: MeasurementMetric[];
   exercises: Exercise[];
 };
 
@@ -73,6 +92,20 @@ function serializeBodyMetric(metric: BodyMetric): StoredBodyMetric {
 }
 
 function parseBodyMetric(metric: StoredBodyMetric): BodyMetric {
+  return {
+    ...metric,
+    date: new Date(metric.date),
+  };
+}
+
+function serializeMeasurementMetric(metric: MeasurementMetric): StoredMeasurementMetric {
+  return {
+    ...metric,
+    date: metric.date.toISOString(),
+  };
+}
+
+function parseMeasurementMetric(metric: StoredMeasurementMetric): MeasurementMetric {
   return {
     ...metric,
     date: new Date(metric.date),
@@ -114,28 +147,53 @@ function bumpStoreRevision() {
   notifyUpdate();
 }
 
-function parseProfile(profile: Profile): Profile {
-  return {
+function parseProfile(
+  profile: Profile,
+  measurementMetrics: MeasurementMetric[] = [],
+): Profile {
+  const normalized = {
     ...profile,
     lastName: profile.lastName ?? seedProfile.lastName,
     phone: profile.phone ?? seedProfile.phone,
     startWeight: profile.startWeight ?? profile.currentWeight,
+    startMeasurements: normalizeBodyMeasurements(
+      profile.startMeasurements ?? seedProfile.startMeasurements,
+    ),
+    currentMeasurements: normalizeBodyMeasurements(
+      profile.currentMeasurements ?? seedProfile.currentMeasurements,
+    ),
   };
+
+  return resolveProfileMeasurements(normalized, measurementMetrics);
 }
 
 export function getDefaultStore(): GymmateStore {
+  const profile = parseProfile({ ...seedProfile });
+
   return {
     workouts: seedWorkouts.map((workout) => ({
       ...workout,
       date: new Date(workout.date),
     })),
-    profile: parseProfile({ ...seedProfile }),
-    bodyMetrics: seedBodyMetrics.map((metric) => ({
-      ...metric,
-      date: new Date(metric.date),
-    })),
+    profile,
+    bodyMetrics: buildBaselineBodyMetrics(
+      profile,
+      new Date("2025-11-12T12:00:00"),
+      new Date("2026-05-26T12:00:00"),
+    ),
+    measurementMetrics: buildAllBaselineMeasurementMetrics(
+      profile,
+      new Date("2025-11-12T12:00:00"),
+      new Date("2026-05-26T12:00:00"),
+    ),
     exercises: [...seedExercises],
   };
+}
+
+export function resetBodyMetricsFromProfile(profile: Profile, startDate = new Date()) {
+  const baseline = buildBaselineBodyMetrics(profile, startDate);
+  saveBodyMetrics(baseline);
+  return baseline;
 }
 
 function initStoreIfNeeded() {
@@ -154,6 +212,10 @@ function initStoreIfNeeded() {
     STORAGE_KEYS.bodyMetrics,
     defaults.bodyMetrics.map(serializeBodyMetric),
   );
+  writeJson(
+    STORAGE_KEYS.measurementMetrics,
+    defaults.measurementMetrics.map(serializeMeasurementMetric),
+  );
   writeJson(STORAGE_KEYS.exercises, defaults.exercises);
   window.localStorage.setItem(STORAGE_KEYS.initialized, "1");
   window.localStorage.setItem(STORAGE_KEYS.revision, "0");
@@ -167,6 +229,9 @@ export function loadStore(): GymmateStore {
   const storedWorkouts = readJson<StoredWorkout[]>(STORAGE_KEYS.workouts);
   const storedProfile = readJson<Profile>(STORAGE_KEYS.profile);
   const storedMetrics = readJson<StoredBodyMetric[]>(STORAGE_KEYS.bodyMetrics);
+  const storedMeasurementMetrics = readJson<StoredMeasurementMetric[]>(
+    STORAGE_KEYS.measurementMetrics,
+  );
   const storedExercises = readJson<Exercise[]>(STORAGE_KEYS.exercises);
   const defaults = getDefaultStore();
 
@@ -178,10 +243,19 @@ export function loadStore(): GymmateStore {
     return defaults;
   }
 
+  const parsedMetrics =
+    storedMeasurementMetrics?.map(parseMeasurementMetric) ??
+    defaults.measurementMetrics;
+
   return {
     workouts: storedWorkouts?.map(parseWorkout) ?? defaults.workouts,
-    profile: storedProfile ? parseProfile(storedProfile) : defaults.profile,
-    bodyMetrics: storedMetrics?.map(parseBodyMetric) ?? defaults.bodyMetrics,
+    profile: storedProfile
+      ? parseProfile(storedProfile, parsedMetrics)
+      : defaults.profile,
+    bodyMetrics: consolidateMetricsByDay(
+      storedMetrics?.map(parseBodyMetric) ?? defaults.bodyMetrics,
+    ),
+    measurementMetrics: consolidateMeasurementMetrics(parsedMetrics),
     exercises: storedExercises ?? defaults.exercises,
   };
 }
@@ -203,6 +277,14 @@ export function saveBodyMetrics(bodyMetrics: BodyMetric[]) {
   writeJson(
     STORAGE_KEYS.bodyMetrics,
     bodyMetrics.map(serializeBodyMetric),
+  );
+  bumpStoreRevision();
+}
+
+export function saveMeasurementMetrics(measurementMetrics: MeasurementMetric[]) {
+  writeJson(
+    STORAGE_KEYS.measurementMetrics,
+    measurementMetrics.map(serializeMeasurementMetric),
   );
   bumpStoreRevision();
 }
@@ -321,37 +403,92 @@ export function deleteExercise(id: string): DeleteExerciseResult {
   return "deleted";
 }
 
-export function updateProfile(profile: Profile, previousWeight?: number) {
+export type ProfileUpdateOptions = {
+  previousWeight?: number;
+  previousStartWeight?: number;
+} & MeasurementMetricUpdateOptions;
+
+function syncEarliestLocalBodyMetric(
+  metrics: BodyMetric[],
+  weight: number,
+  startDate: Date,
+) {
+  return upsertStartMetric(metrics, weight, startDate);
+}
+
+export async function updateProfile(
+  profile: Profile,
+  options: ProfileUpdateOptions = {},
+): Promise<Profile | void> {
+  const { previousWeight, previousStartWeight, ...measurementOptions } = options;
+
   if (isApiEnabled()) {
-    void (async () => {
-      await apiPatchProfile(profile, previousWeight);
-      notifyUpdate();
-    })();
-    return;
+    const updated = await apiPatchProfile(profile, {
+      previousWeight,
+      previousStartWeight,
+      ...measurementOptions,
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(GYMMATE_STORE_INVALIDATE_EVENT));
+    }
+    notifyUpdate();
+    return updated;
   }
 
   const store = loadStore();
+  const previousProfile = store.profile;
   saveProfile(profile);
 
+  let nextMetrics =
+    store.bodyMetrics.length > 0
+      ? [...store.bodyMetrics]
+      : buildBaselineBodyMetrics(profile, new Date("2025-11-12T12:00:00"));
+
+  let nextMeasurementMetrics =
+    store.measurementMetrics.length > 0
+      ? [...store.measurementMetrics]
+      : buildAllBaselineMeasurementMetrics(profile, new Date("2025-11-12T12:00:00"));
+
+  let metricsChanged = store.bodyMetrics.length === 0;
+  let measurementMetricsChanged = store.measurementMetrics.length === 0;
+
+  if (
+    previousStartWeight !== undefined &&
+    profile.startWeight !== previousStartWeight
+  ) {
+    nextMetrics = syncEarliestLocalBodyMetric(
+      nextMetrics,
+      profile.startWeight,
+      new Date("2025-11-12T12:00:00"),
+    );
+    metricsChanged = true;
+  }
+
   if (previousWeight !== undefined && profile.currentWeight !== previousWeight) {
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
+    nextMetrics = recordCurrentMetric(nextMetrics, profile.currentWeight);
+    metricsChanged = true;
+  }
 
-    const sameDayIndex = store.bodyMetrics.findIndex((metric) => {
-      const metricDate = new Date(metric.date);
-      return metricDate.toDateString() === today.toDateString();
-    });
+  const measurementSync = applyMeasurementMetricUpdates(
+    nextMeasurementMetrics,
+    profile,
+    previousProfile.startMeasurements,
+    new Date("2025-11-12T12:00:00"),
+    measurementOptions,
+  );
 
-    const nextMetrics = [...store.bodyMetrics];
+  if (measurementSync.changed) {
+    nextMeasurementMetrics = measurementSync.metrics;
+    measurementMetricsChanged = true;
+  }
 
-    if (sameDayIndex >= 0) {
-      nextMetrics[sameDayIndex] = { date: today, weight: profile.currentWeight };
-    } else {
-      nextMetrics.push({ date: today, weight: profile.currentWeight });
-    }
-
+  if (metricsChanged) {
     nextMetrics.sort((a, b) => a.date.getTime() - b.date.getTime());
     saveBodyMetrics(nextMetrics);
+  }
+
+  if (measurementMetricsChanged) {
+    saveMeasurementMetrics(nextMeasurementMetrics);
   }
 }
 

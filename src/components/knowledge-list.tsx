@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Plus } from "lucide-react";
+import { ArticleFormDialog } from "@/components/article-form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { fetchArticles, isApiEnabled } from "@/lib/gymmate-api";
+import { fetchArticles, isApiEnabled, postArticle } from "@/lib/gymmate-api";
+import { createArticleSlug, getArticlePreview } from "@/lib/article-utils";
+import { loadLocalArticles, saveLocalArticles } from "@/lib/article-storage";
 import { articles as mockArticles } from "@/lib/mock-data";
 import { articleCategoryLabels } from "@/lib/labels";
 import type { Article, ArticleCategory } from "@/lib/types";
@@ -20,24 +25,99 @@ const categoryTabs: { id: ArticleCategory; label: string }[] = [
 export function KnowledgeList() {
   const [activeCategory, setActiveCategory] = useState<ArticleCategory>("TRAINING");
   const [articles, setArticles] = useState<Article[]>(mockArticles);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const loadArticles = useCallback(async () => {
+    if (!isApiEnabled()) {
+      setArticles(loadLocalArticles());
+      return;
+    }
+
+    try {
+      const data = await fetchArticles();
+      setArticles(data.articles);
+    } catch {
+      setArticles(loadLocalArticles());
+    }
+  }, []);
 
   useEffect(() => {
-    if (!isApiEnabled()) return;
-
-    void fetchArticles()
-      .then((data) => setArticles(data.articles))
-      .catch(() => setArticles(mockArticles));
-  }, []);
+    void loadArticles();
+  }, [loadArticles]);
 
   const filteredArticles = articles.filter(
     (article) => article.category === activeCategory,
   );
+
+  async function handleCreateArticle(data: { title: string; description: string }) {
+    setSaving(true);
+    setFormError(null);
+
+    try {
+      if (isApiEnabled()) {
+        const created = await postArticle({
+          title: data.title,
+          description: data.description,
+          category: activeCategory,
+        });
+        setArticles((current) => [created, ...current]);
+      } else {
+        const created: Article = {
+          id: crypto.randomUUID(),
+          title: data.title.trim(),
+          slug: createArticleSlug(data.title),
+          content: data.description.trim(),
+          category: activeCategory,
+        };
+        setArticles((current) => {
+          const next = [created, ...current];
+          saveLocalArticles(next);
+          return next;
+        });
+      }
+
+      setDialogOpen(false);
+    } catch {
+      setFormError("Не удалось сохранить статью. Попробуйте ещё раз.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="База знаний"
         description="Полезные материалы для прогресса в зале"
+        action={
+          <button
+            type="button"
+            className={cn(buttonVariants(), "gym-btn-primary")}
+            onClick={() => {
+              setFormError(null);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="size-4" />
+            Новая статья
+          </button>
+        }
+      />
+
+      <ArticleFormDialog
+        open={dialogOpen}
+        category={activeCategory}
+        loading={saving}
+        error={formError}
+        onSubmit={(data) => void handleCreateArticle(data)}
+        onCancel={() => {
+          if (!saving) {
+            setDialogOpen(false);
+            setFormError(null);
+          }
+        }}
       />
 
       <div className="space-y-4">
@@ -91,12 +171,7 @@ export function KnowledgeList() {
                   <CardTitle className="font-heading text-xl font-normal uppercase tracking-wide">
                     {article.title}
                   </CardTitle>
-                  <CardDescription>
-                    {article.content
-                      .split("\n")
-                      .find((line) => line.trim())
-                      ?.replace(/^#+\s*/, "")}
-                  </CardDescription>
+                  <CardDescription>{getArticlePreview(article.content)}</CardDescription>
                 </CardHeader>
               </Card>
             </Link>

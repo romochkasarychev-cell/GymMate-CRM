@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
-import { ArticleDetailView } from "@/components/article-detail-view";
+import { ArticleEditView } from "@/components/article-edit-view";
 import { getArticleBySlug as getMockArticleBySlug } from "@/lib/mock-data";
 import { getArticleBySlug as getDbArticleBySlug } from "@/lib/server/article-service";
 
-type ArticlePageProps = {
+type ArticleEditPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export default async function ArticlePage({ params }: ArticlePageProps) {
+export default async function ArticleEditPage({ params }: ArticleEditPageProps) {
   const { slug } = await params;
 
   if (process.env.NEXT_PUBLIC_USE_API === "true") {
@@ -17,7 +17,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       notFound();
     }
 
-    return <ArticleDetailView article={article} />;
+    return <ArticleEditView article={article} />;
   }
 
   const article = getMockArticleBySlug(slug);
@@ -26,5 +26,5 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
-  return <ArticleDetailView article={article} />;
+  return <ArticleEditView article={article} />;
 }

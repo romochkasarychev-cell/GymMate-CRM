@@ -1,3 +1,5 @@
+import { normalizeBodyMeasurements, type MeasurementFieldKey } from "@/lib/measurements";
+import type { MeasurementMetricUpdateOptions } from "@/lib/measurement-metrics";
 import type { GymmateStore } from "@/lib/gymmate-storage";
 import type { MuscleGroup, Profile, Workout } from "@/lib/types";
 
@@ -19,6 +21,7 @@ type ApiStoreResponse = {
   profile: Profile;
   workouts: Array<Omit<Workout, "date"> & { date: string }>;
   bodyMetrics: Array<{ date: string; weight: number }>;
+  measurementMetrics: Array<{ date: string; kind: MeasurementFieldKey; value: number }>;
   exercises: GymmateStore["exercises"];
 };
 
@@ -36,9 +39,17 @@ async function parseJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function parseProfile(profile: Profile): Profile {
+  return {
+    ...profile,
+    startMeasurements: normalizeBodyMeasurements(profile.startMeasurements),
+    currentMeasurements: normalizeBodyMeasurements(profile.currentMeasurements),
+  };
+}
+
 function parseStore(data: ApiStoreResponse): GymmateStore {
   return {
-    profile: data.profile,
+    profile: parseProfile(data.profile),
     workouts: data.workouts.map((workout) => ({
       ...workout,
       date: new Date(workout.date),
@@ -46,6 +57,11 @@ function parseStore(data: ApiStoreResponse): GymmateStore {
     bodyMetrics: data.bodyMetrics.map((metric) => ({
       date: new Date(metric.date),
       weight: metric.weight,
+    })),
+    measurementMetrics: data.measurementMetrics.map((metric) => ({
+      date: new Date(metric.date),
+      kind: metric.kind,
+      value: metric.value,
     })),
     exercises: data.exercises,
   };
@@ -65,12 +81,18 @@ export async function fetchStore(): Promise<GymmateStore> {
   return parseStore(data);
 }
 
-export async function patchProfile(profile: Profile, previousWeight?: number) {
+export async function patchProfile(
+  profile: Profile,
+  options: {
+    previousWeight?: number;
+    previousStartWeight?: number;
+  } & MeasurementMetricUpdateOptions = {},
+) {
   const data = await parseJson<{ profile: Profile }>(
     await apiFetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profile, previousWeight }),
+      body: JSON.stringify({ profile, ...options }),
     }),
   );
 
@@ -171,5 +193,46 @@ export async function removeExercise(id: string) {
 export async function fetchArticles() {
   return parseJson<{ articles: import("@/lib/types").Article[] }>(
     await apiFetch("/api/articles"),
+  );
+}
+
+export async function postArticle(input: {
+  title: string;
+  description: string;
+  category: import("@/lib/types").ArticleCategory;
+}) {
+  const data = await parseJson<{ article: import("@/lib/types").Article }>(
+    await apiFetch("/api/articles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+
+  return data.article;
+}
+
+export async function patchArticle(
+  id: string,
+  input: {
+    title: string;
+    description: string;
+    category: import("@/lib/types").ArticleCategory;
+  },
+) {
+  const data = await parseJson<{ article: import("@/lib/types").Article }>(
+    await apiFetch(`/api/articles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+
+  return data.article;
+}
+
+export async function removeArticle(id: string) {
+  await parseJson<{ ok: boolean }>(
+    await apiFetch(`/api/articles/${id}`, { method: "DELETE" }),
   );
 }

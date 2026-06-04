@@ -2,7 +2,7 @@ import { ApiErrors } from "@/lib/api/errors";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { createSessionToken } from "@/lib/session";
-import type { Profile } from "@/lib/types";
+import { mapUserToProfile } from "@/lib/profile-mapper";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -107,13 +107,5 @@ export async function getAuthProfile(userId: string) {
     throw ApiErrors.notFound("User not found");
   }
 
-  return {
-    name: user.name,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    goal: user.goal,
-    startWeight: user.startWeight,
-    currentWeight: user.currentWeight,
-  } satisfies Profile;
+  return mapUserToProfile(user);
 }

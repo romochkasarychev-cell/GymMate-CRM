@@ -15,6 +15,26 @@ export const profile: Profile = {
   goal: "MUSCLE_GAIN",
   startWeight: 80.2,
   currentWeight: 78.5,
+  startMeasurements: {
+    shoulders: 118,
+    chest: 102,
+    waist: 84,
+    hips: 98,
+    armRight: 36,
+    armLeft: 35.5,
+    legRight: 58,
+    legLeft: 57.5,
+  },
+  currentMeasurements: {
+    shoulders: 116,
+    chest: 100,
+    waist: 82,
+    hips: 96,
+    armRight: 35,
+    armLeft: 34.5,
+    legRight: 57,
+    legLeft: 56.5,
+  },
 };
 
 export const users = [
@@ -89,11 +109,8 @@ export const workouts: Workout[] = [
 ];
 
 export const bodyMetrics: BodyMetric[] = [
-  { date: new Date("2026-04-01"), weight: 80.2 },
-  { date: new Date("2026-04-15"), weight: 79.8 },
-  { date: new Date("2026-05-01"), weight: 79.1 },
-  { date: new Date("2026-05-15"), weight: 78.8 },
-  { date: new Date("2026-05-26"), weight: 78.5 },
+  { date: new Date("2025-11-12T12:00:00"), weight: profile.startWeight },
+  { date: new Date("2026-05-26T12:00:00"), weight: profile.currentWeight },
 ];
 
 export const articles: Article[] = [

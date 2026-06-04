@@ -3,11 +3,17 @@ import { PrismaClient } from "../src/generated/prisma";
 import { hashPassword } from "../src/lib/password";
 import {
   articles,
-  bodyMetrics,
   exercises,
   profile,
   workouts,
 } from "../src/lib/mock-data";
+import { buildBaselineBodyMetrics } from "../src/lib/body-metrics";
+import { buildAllBaselineMeasurementMetrics } from "../src/lib/measurement-metrics";
+import {
+  currentMeasurementsToUserData,
+  PRISMA_MEASUREMENT_KIND,
+  startMeasurementsToUserData,
+} from "../src/lib/measurements";
 
 const prisma = new PrismaClient();
 
@@ -19,12 +25,6 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email: demoEmail },
     update: {
-      name: profile.name,
-      lastName: profile.lastName,
-      phone: profile.phone,
-      goal: profile.goal,
-      startWeight: profile.startWeight,
-      currentWeight: profile.currentWeight,
       status: "ACTIVE",
       passwordHash,
     },
@@ -36,6 +36,8 @@ async function main() {
       goal: profile.goal,
       startWeight: profile.startWeight,
       currentWeight: profile.currentWeight,
+      ...startMeasurementsToUserData(profile.startMeasurements),
+      ...currentMeasurementsToUserData(profile.currentMeasurements),
       status: "ACTIVE",
       passwordHash,
     },
@@ -98,16 +100,54 @@ async function main() {
     });
   }
 
-  await prisma.bodyMetric.deleteMany({ where: { userId: user.id } });
+  const existingMetrics = await prisma.bodyMetric.count({
+    where: { userId: user.id },
+  });
 
-  for (const metric of bodyMetrics) {
-    await prisma.bodyMetric.create({
-      data: {
-        userId: user.id,
-        date: metric.date,
-        weight: metric.weight,
+  if (existingMetrics === 0) {
+    const baseline = buildBaselineBodyMetrics(
+      {
+        startWeight: user.startWeight,
+        currentWeight: user.currentWeight,
       },
-    });
+      user.createdAt,
+    );
+
+    for (const metric of baseline) {
+      await prisma.bodyMetric.create({
+        data: {
+          userId: user.id,
+          date: metric.date,
+          weight: metric.weight,
+        },
+      });
+    }
+  }
+
+  const existingMeasurementMetrics = await prisma.measurementMetric.count({
+    where: { userId: user.id },
+  });
+
+  if (existingMeasurementMetrics === 0) {
+    const baseline = buildAllBaselineMeasurementMetrics(
+      {
+        startMeasurements: profile.startMeasurements,
+        currentMeasurements: profile.currentMeasurements,
+      },
+      user.createdAt,
+      new Date("2026-05-26T12:00:00"),
+    );
+
+    for (const metric of baseline) {
+      await prisma.measurementMetric.create({
+        data: {
+          userId: user.id,
+          date: metric.date,
+          kind: PRISMA_MEASUREMENT_KIND[metric.kind],
+          value: metric.value,
+        },
+      });
+    }
   }
 
   for (const article of articles) {
