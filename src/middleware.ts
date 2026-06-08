@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
-const PUBLIC_PAGE_PATHS = ["/login", "/register"];
-const PUBLIC_API_PATHS = ["/api/auth/login", "/api/auth/register"];
+const PUBLIC_PAGE_PATHS = ["/login", "/register", "/api-docs"];
+const PUBLIC_API_PATHS = ["/api/auth/login", "/api/auth/register", "/api/openapi"];
 
 function isPublicPage(pathname: string) {
   return PUBLIC_PAGE_PATHS.includes(pathname);

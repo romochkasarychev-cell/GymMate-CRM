@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/api/errors";
+import { logger } from "@/lib/logger";
 import {
   SESSION_COOKIE_NAME,
   SESSION_MAX_AGE_SECONDS,
@@ -43,13 +44,24 @@ export function clearSessionCookie(response: NextResponse) {
 
 export function errorResponse(error: unknown) {
   if (error instanceof ApiError) {
+    const level = error.status >= 500 ? "error" : "warn";
+    void logger[level]("api.error", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    });
+
     return NextResponse.json(
       { error: error.code, message: error.message },
       { status: error.status },
     );
   }
 
-  console.error(error);
+  void logger.error("api.error.internal", {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+
   return NextResponse.json(
     { error: "INTERNAL_ERROR", message: "Internal server error" },
     { status: 500 },

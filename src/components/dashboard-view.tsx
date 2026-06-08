@@ -1,13 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { Calendar, CalendarDays, CalendarRange, Dumbbell, Scale, TrendingUp } from "lucide-react";
 import { DashboardCharts } from "@/components/dashboard-charts";
 import { PageHeader, StatCard } from "@/components/page-header";
-import { buttonVariants } from "@/components/ui/button";
 import { useGymmateStore } from "@/hooks/use-gymmate-store";
 import { getDashboardData } from "@/lib/dashboard-data";
-import { cn } from "@/lib/utils";
 
 export function DashboardView() {
   const store = useGymmateStore();
@@ -23,11 +20,6 @@ export function DashboardView() {
       <PageHeader
         title="Прогресс"
         description="Обзор тренировок, объёма, веса и замеров"
-        action={
-          <Link href="/workouts/new" className={cn(buttonVariants(), "gym-btn-primary")}>
-            Новая тренировка
-          </Link>
-        }
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
