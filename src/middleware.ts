@@ -33,7 +33,7 @@ export async function middleware(request: NextRequest) {
   const authenticated = await hasValidSession(request);
 
   if (isPublicPage(pathname)) {
-    if (authenticated) {
+    if (authenticated && (pathname === "/login" || pathname === "/register")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
