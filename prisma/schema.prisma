@@ -52,6 +52,12 @@ enum MeasurementKind {
   LEG_LEFT
 }
 
+enum FoodSource {
+  BASKOVSKY
+  OPEN_FOOD_FACTS
+  MANUAL
+}
+
 model User {
   id            String     @id @default(cuid())
   email         String     @unique
@@ -159,4 +165,25 @@ model Article {
   content   String
   category  ArticleCategory
   createdAt DateTime        @default(now())
+}
+
+model FoodProduct {
+  id             String     @id @default(cuid())
+  name           String
+  nameNormalized String
+  category       String?
+  kcal           Float
+  protein        Float      @default(0)
+  fat            Float      @default(0)
+  carbs          Float      @default(0)
+  barcode        String?    @unique
+  brand          String?
+  source         FoodSource
+  externalId     String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([name, source, brand])
+  @@index([nameNormalized])
+  @@index([source])
 }

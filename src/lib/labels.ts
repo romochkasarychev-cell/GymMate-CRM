@@ -44,6 +44,12 @@ export const userStatusLabels: Record<UserStatus, string> = {
   INACTIVE: "Не активен",
 };
 
+export const foodSourceLabels = {
+  BASKOVSKY: "Справочник",
+  OPEN_FOOD_FACTS: "Open Food Facts",
+  MANUAL: "Вручную",
+} as const;
+
 export function formatDate(date: Date) {
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",

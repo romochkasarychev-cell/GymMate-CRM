@@ -105,3 +105,18 @@ export type User = {
   status: UserStatus;
   inactiveSince?: Date;
 };
+
+export type FoodSource = "BASKOVSKY" | "OPEN_FOOD_FACTS" | "MANUAL";
+
+export type FoodProduct = {
+  id: string;
+  name: string;
+  category?: string;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+  barcode?: string;
+  brand?: string;
+  source: FoodSource;
+};

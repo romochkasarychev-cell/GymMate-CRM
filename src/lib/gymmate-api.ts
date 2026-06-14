@@ -239,3 +239,14 @@ export async function removeArticle(id: string) {
     await apiFetch(`/api/articles/${id}`, { method: "DELETE" }),
   );
 }
+
+export async function fetchFoods(query: string, limit = 20) {
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+  });
+
+  return parseJson<{ foods: import("@/lib/types").FoodProduct[]; total: number }>(
+    await apiFetch(`/api/foods?${params.toString()}`),
+  );
+}
