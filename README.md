@@ -137,53 +137,19 @@ npm run logs:consume
 
 ## E2E-тесты (Playwright)
 
-Тесты живут в отдельной папке `tests/` и проверяют вход и регистрацию через браузер.
+Папка `tests/`. Перед запуском приложение должно работать на [http://localhost:3000](http://localhost:3000) (`npm run dev`).
 
-### 1. Запустите приложение с API
-
-В одном терминале из корня проекта:
-
-```bash
-npm run db:up
-npm run db:push
-npm run db:seed
-npm run dev
-```
-
-Убедитесь, что в `.env` или `.env.local` задано `NEXT_PUBLIC_USE_API="true"`.
-
-### 2. Установите Playwright (один раз)
+| Тест | Файл |
+|------|------|
+| Вход под demo-пользователем | `tests/tests/auth/login.spec.ts` |
+| Регистрация нового пользователя | `tests/tests/auth/registerUser.spec.ts` |
 
 ```bash
 cd tests
 npm install
 npx playwright install
-```
-
-### 3. Запуск тестов
-
-```bash
-cd tests
 npx playwright test
 ```
-
-**Один файл или фильтр по названию:**
-
-```bash
-npx playwright test tests/auth/login.spec.ts
-npx playwright test -g "Регистрация"
-```
-
-**Интерактивный режим и отчёт:**
-
-```bash
-npx playwright test --ui
-npx playwright show-report
-```
-
-Запускайте команды **из папки `tests/`**, иначе Playwright может не найти config и зависимости.
-
-Demo-данные для логина: `demo@gymmate.local` / `demo123`.
 
 ## Сборка
 
