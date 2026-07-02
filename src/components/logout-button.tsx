@@ -5,8 +5,9 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isApiEnabled } from "@/lib/gymmate-api";
 import { resetGymmateStoreCache } from "@/hooks/use-gymmate-store";
+import { cn } from "@/lib/utils";
 
-export function LogoutButton() {
+export function LogoutButton({ className }: { className?: string }) {
   const router = useRouter();
 
   if (!isApiEnabled()) {
@@ -29,7 +30,7 @@ export function LogoutButton() {
       type="button"
       variant="ghost"
       size="sm"
-      className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
+      className={cn("inline-flex text-muted-foreground hover:text-foreground", className)}
       onClick={() => void handleLogout()}
     >
       <LogOut className="size-4" />

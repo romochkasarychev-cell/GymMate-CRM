@@ -120,3 +120,20 @@ export type FoodProduct = {
   brand?: string;
   source: FoodSource;
 };
+
+export type UserRole = "USER" | "ADMIN";
+
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+export type ApiLogEntry = {
+  id: string;
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  route?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  durationMs?: number;
+  userEmail?: string;
+};

@@ -1,4 +1,5 @@
 import { publishLogEvent } from "@/lib/logger/kafka-transport";
+import { persistLogEvent } from "@/lib/logger/db-transport";
 import type { LogEvent, LogLevel } from "@/lib/logger/types";
 
 function writeToConsole(level: LogLevel, message: string, context?: Record<string, unknown>) {
@@ -36,8 +37,12 @@ function buildEvent(
 }
 
 async function emit(level: LogLevel, message: string, context?: Record<string, unknown>) {
+  const event = buildEvent(level, message, context);
   writeToConsole(level, message, context);
-  void publishLogEvent(buildEvent(level, message, context));
+  void publishLogEvent(event);
+  void persistLogEvent(event).catch(() => {
+    // DB logging is best-effort and must not break requests.
+  });
 }
 
 export const logger = {

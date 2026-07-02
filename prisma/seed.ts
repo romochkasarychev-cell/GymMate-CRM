@@ -27,6 +27,7 @@ async function main() {
     update: {
       status: "ACTIVE",
       passwordHash,
+      role: "ADMIN",
     },
     create: {
       email: demoEmail,
@@ -39,6 +40,7 @@ async function main() {
       ...startMeasurementsToUserData(profile.startMeasurements),
       ...currentMeasurementsToUserData(profile.currentMeasurements),
       status: "ACTIVE",
+      role: "ADMIN",
       passwordHash,
     },
   });

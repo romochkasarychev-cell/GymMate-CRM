@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { getSessionUser } from "@/lib/server/auth-user";
 
 function sanitizePath(pathname: string) {
   return pathname.split("?")[0] ?? pathname;
@@ -11,6 +12,7 @@ export async function withLoggedHandler(
 ) {
   const startedAt = Date.now();
   const { pathname, search } = new URL(request.url);
+  const sessionUser = await getSessionUser(request);
 
   try {
     const response = await handler();
@@ -24,6 +26,7 @@ export async function withLoggedHandler(
       query: search || undefined,
       status: response.status,
       durationMs,
+      userEmail: sessionUser?.email,
     });
 
     return response;
@@ -36,6 +39,7 @@ export async function withLoggedHandler(
       path: sanitizePath(pathname),
       query: search || undefined,
       durationMs,
+      userEmail: sessionUser?.email,
       error: error instanceof Error ? error.message : String(error),
     });
 

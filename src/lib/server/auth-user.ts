@@ -83,3 +83,23 @@ export async function requireSessionUserFromCookies() {
 
   return user;
 }
+
+export async function requireAdminUser(request: Request) {
+  const user = await requireSessionUser(request);
+
+  if (user.role !== "ADMIN") {
+    throw ApiErrors.forbidden("Admin access required");
+  }
+
+  return user;
+}
+
+export async function requireAdminUserFromCookies() {
+  const user = await requireSessionUserFromCookies();
+
+  if (user.role !== "ADMIN") {
+    throw ApiErrors.forbidden("Admin access required");
+  }
+
+  return user;
+}

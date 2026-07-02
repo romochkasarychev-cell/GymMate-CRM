@@ -20,6 +20,7 @@ export async function GET(request: Request) {
           email: user.email,
           name: user.name,
           lastName: user.lastName,
+          role: user.role,
         },
         profile,
       });

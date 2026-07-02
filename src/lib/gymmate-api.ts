@@ -250,3 +250,34 @@ export async function fetchFoods(query: string, limit = 20) {
     await apiFetch(`/api/foods?${params.toString()}`),
   );
 }
+
+export async function fetchAuthUser() {
+  return parseJson<{
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      lastName: string;
+      role: "USER" | "ADMIN";
+    } | null;
+    profile?: import("@/lib/types").Profile;
+  }>(await apiFetch("/api/auth/me"));
+}
+
+export async function fetchLogs(options?: { limit?: number; level?: string }) {
+  const params = new URLSearchParams();
+
+  if (options?.limit) {
+    params.set("limit", String(options.limit));
+  }
+
+  if (options?.level) {
+    params.set("level", options.level);
+  }
+
+  const query = params.toString();
+
+  return parseJson<{ logs: import("@/lib/types").ApiLogEntry[] }>(
+    await apiFetch(`/api/logs${query ? `?${query}` : ""}`),
+  );
+}

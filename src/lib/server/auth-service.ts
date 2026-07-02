@@ -23,6 +23,7 @@ export type AuthUserResponse = {
   email: string;
   name: string;
   lastName: string;
+  role: "USER" | "ADMIN";
 };
 
 function toAuthUser(user: {
@@ -30,12 +31,14 @@ function toAuthUser(user: {
   email: string;
   name: string;
   lastName: string;
+  role: "USER" | "ADMIN";
 }) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     lastName: user.lastName,
+    role: user.role,
   } satisfies AuthUserResponse;
 }
 

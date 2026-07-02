@@ -35,6 +35,11 @@ enum UserStatus {
   INACTIVE
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 enum ArticleCategory {
   NUTRITION
   TRAINING
@@ -85,6 +90,7 @@ model User {
   currentLegRight  Float   @default(0)
   currentLegLeft   Float   @default(0)
   status        UserStatus @default(ACTIVE)
+  role          UserRole   @default(USER)
   inactiveSince DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -186,4 +192,22 @@ model FoodProduct {
   @@unique([name, source, brand])
   @@index([nameNormalized])
   @@index([source])
+}
+
+model ApiLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  level      String
+  message    String
+  route      String?
+  method     String?
+  path       String?
+  status     Int?
+  durationMs Int?
+  userEmail  String?
+  context    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@index([level])
 }

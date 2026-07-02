@@ -15,6 +15,7 @@ export const ApiErrors = {
   conflict: (message = "Conflict") => new ApiError(409, "CONFLICT", message),
   unauthorized: (message = "Unauthorized") =>
     new ApiError(401, "UNAUTHORIZED", message),
+  forbidden: (message = "Forbidden") => new ApiError(403, "FORBIDDEN", message),
   internal: (message = "Internal server error") =>
     new ApiError(500, "INTERNAL_ERROR", message),
 };
