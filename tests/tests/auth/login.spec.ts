@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { testUser } from '../tests/testData';
+import { testUser } from '../testData/testData';
 
 
-test('Переход на страницу и логин под Админским юзером', async ({ page }) => {
+test('Вход под демо юзером', async ({ page }) => {
   await page.goto('http://localhost:3000');
   await page.getByRole('textbox',{name:'Email'}).fill(testUser.email);
   await page.getByRole('textbox',{name:'Пароль'}).fill(testUser.password);
