@@ -47,6 +47,7 @@ export const userStatusLabels: Record<UserStatus, string> = {
 export const foodSourceLabels = {
   BASKOVSKY: "Справочник",
   OPEN_FOOD_FACTS: "Open Food Facts",
+  FATSECRET: "FatSecret",
   MANUAL: "Вручную",
 } as const;
 

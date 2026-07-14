@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { ApiErrors } from "@/lib/api/errors";
+import { isFatSecretEnabled } from "@/lib/food/fatsecret-client";
+import { searchFatSecretFoods } from "@/lib/food/parse-fatsecret";
 import { normalizeFoodName } from "@/lib/food/types";
+import { cacheParsedFoods } from "@/lib/server/food-cache";
 import type { FoodProduct } from "@/lib/types";
 
 function mapFood(record: {
@@ -29,13 +32,11 @@ function mapFood(record: {
   };
 }
 
-export async function searchFoods(query: string, limit = 20): Promise<FoodProduct[]> {
+async function searchLocalFoods(query: string, limit: number): Promise<FoodProduct[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) {
     throw ApiErrors.badRequest("Query must be at least 2 characters");
   }
-
-  const safeLimit = Math.min(Math.max(limit, 1), 50);
 
   if (/^\d{8,14}$/.test(trimmed)) {
     const byBarcode = await prisma.foodProduct.findUnique({
@@ -57,10 +58,46 @@ export async function searchFoods(query: string, limit = 20): Promise<FoodProduc
       })),
     },
     orderBy: [{ name: "asc" }],
-    take: safeLimit,
+    take: limit,
   });
 
   return foods.map(mapFood);
+}
+
+function mergeFoodResults(primary: FoodProduct[], secondary: FoodProduct[], limit: number) {
+  const merged = [...primary];
+  const seen = new Set(primary.map((food) => food.id));
+
+  for (const food of secondary) {
+    if (merged.length >= limit) break;
+    if (seen.has(food.id)) continue;
+    seen.add(food.id);
+    merged.push(food);
+  }
+
+  return merged;
+}
+
+export async function searchFoods(query: string, limit = 20): Promise<FoodProduct[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const localFoods = await searchLocalFoods(query, safeLimit);
+
+  if (localFoods.length >= safeLimit || !isFatSecretEnabled()) {
+    return localFoods;
+  }
+
+  try {
+    const remoteFoods = await searchFatSecretFoods(query, safeLimit - localFoods.length);
+    if (remoteFoods.length === 0) {
+      return localFoods;
+    }
+
+    const cached = await cacheParsedFoods(remoteFoods);
+    const cachedFoods = cached.map(mapFood);
+    return mergeFoodResults(localFoods, cachedFoods, safeLimit);
+  } catch {
+    return localFoods;
+  }
 }
 
 export async function getFoodById(id: string): Promise<FoodProduct | null> {

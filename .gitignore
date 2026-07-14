@@ -36,6 +36,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local API keys (never commit)
+credentials.md
+
 # vercel
 .vercel
 

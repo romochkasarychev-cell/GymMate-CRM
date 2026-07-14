@@ -60,6 +60,7 @@ enum MeasurementKind {
 enum FoodSource {
   BASKOVSKY
   OPEN_FOOD_FACTS
+  FATSECRET
   MANUAL
 }
 

@@ -163,7 +163,7 @@ export function NutritionView() {
               Каталог продуктов
             </CardTitle>
             <CardDescription>
-              Более 5000 продуктов. Введите название или штрихкод.
+              Локальный каталог и FatSecret. Введите название или штрихкод.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

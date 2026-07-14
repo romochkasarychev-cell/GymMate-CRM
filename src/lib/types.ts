@@ -106,7 +106,7 @@ export type User = {
   inactiveSince?: Date;
 };
 
-export type FoodSource = "BASKOVSKY" | "OPEN_FOOD_FACTS" | "MANUAL";
+export type FoodSource = "BASKOVSKY" | "OPEN_FOOD_FACTS" | "FATSECRET" | "MANUAL";
 
 export type FoodProduct = {
   id: string;
